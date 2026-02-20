@@ -1,4 +1,17 @@
-# Onion Monero Blockchain Explorer
+# MYT Explorer
+
+MYT Explorer is based on the open-source
+`onion-monero-blockchain-explorer` codebase and integrates with the MYT
+network (a Monero-based fork).
+
+## Upstream Attribution
+
+- Original explorer base:
+  https://github.com/moneroexamples/onion-monero-blockchain-explorer
+- Monero C++ libraries and protocol stack are used as upstream base in MYT.
+
+The original upstream license notices are retained. MYT-specific changes are
+copyright (c) 2026, MYT.
 
 Currently available Monero blockchain explorers have several limitations which are of
 special importance to privacy-oriented users:
