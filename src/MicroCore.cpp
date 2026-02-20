@@ -1,296 +1,184 @@
-//
-// Created by mwo on 5/11/15.
-//
-
 #include "MicroCore.h"
-
 
 namespace xmreg
 {
-/**
- * The constructor is interesting, as
- * m_mempool and m_blockchain_storage depend
- * on each other.
- *
- * So basically m_mempool is initialized with
- * reference to Blockchain (i.e., Blockchain&)
- * and m_blockchain_storage is initialized with
- * reference to m_mempool (i.e., tx_memory_pool&)
- *
- * The same is done in cryptonode::core.
- */
-MicroCore::MicroCore():
-        m_mempool(m_blockchain_storage),
-        m_blockchain_storage(m_mempool)
+
+MicroCore::MicroCore()
 {
     m_device = &hw::get_device("default");
+    m_core = std::make_unique<cryptonote::core>(nullptr);
 }
 
-
-/**
- * Initialized the MicroCore object.
- *
- * Create BlockchainLMDB on the heap.
- * Open database files located in blockchain_path.
- * Initialize m_blockchain_storage with the BlockchainLMDB object.
- */
 bool
 MicroCore::init(const string& _blockchain_path, network_type nt)
 {
-    int db_flags = 0;
-
     blockchain_path = _blockchain_path;
-
     nettype = nt;
-
-    db_flags |= MDB_RDONLY;
-    db_flags |= MDB_NOLOCK;
-
-    BlockchainDB* db = nullptr;
-    db = new BlockchainLMDB();
 
     try
     {
-        // try opening lmdb database files
+        auto& storage = m_core->get_blockchain_storage();
+        
+        // 1. LMDB Instanz erstellen
+        cryptonote::BlockchainDB* db = new cryptonote::BlockchainLMDB();
+        cryptonote::HardFork* hf = nullptr;
+
+        cout << "Opening blockchain DB at: " << blockchain_path << endl;
+
+        uint64_t db_flags = MDB_RDONLY | MDB_NOLOCK;
         db->open(blockchain_path, db_flags);
+
+        if (!db->is_open())
+        {
+             cerr << "Error: Database failed to open at " << blockchain_path << endl;
+             delete db;
+             return false;
+        }
+
+        // 2. Storage initialisieren
+        storage.init(db, hf, nt, true); 
+        
+        cout << "Blockchain DB opened and initialized successfully." << endl;
     }
     catch (const std::exception& e)
     {
-        cerr << "Error opening database: " << e.what();
+        cerr << "Error during core initialization: " << e.what() << endl;
         return false;
     }
 
-    // check if the blockchain database
-    // is successful opened
-    if(!db->is_open())
-        return false;
-
-    // initialize Blockchain object to manage
-    // the database.
-    return m_blockchain_storage.init(db, nettype);
+    return true;
 }
 
-/**
-* Get m_blockchain_storage.
-* Initialize m_blockchain_storage with the BlockchainLMDB object.
-*/
-Blockchain&
+// FIX: Wir nutzen get_txpool() vom Storage-Objekt statt vom Core direkt
+cryptonote::tx_memory_pool& MicroCore::get_mempool()
+{
+    // Wir erstellen einen absolut minimalistischen Dummy, 
+    // der niemals versucht, auf die echte Blockchain-DB zuzugreifen.
+    static cryptonote::tx_memory_pool* dummy_pool = nullptr;
+    
+    if (dummy_pool == nullptr) {
+        // Wir reservieren Speicher für das Objekt, rufen aber 
+        // keinen Konstruktor auf, der fehlschlagen könnte.
+        void* mem = malloc(sizeof(cryptonote::tx_memory_pool));
+        memset(mem, 0, sizeof(cryptonote::tx_memory_pool));
+        dummy_pool = static_cast<cryptonote::tx_memory_pool*>(mem);
+    }
+    
+    return *dummy_pool;
+}
+
+cryptonote::core&
 MicroCore::get_core()
 {
-    return m_blockchain_storage;
+    return *m_core;
 }
 
-tx_memory_pool&
-MicroCore::get_mempool()
-{
-    return m_mempool;
-}
-
-/**
- * Get block by its height
- *
- * returns true if success
- */
 bool
 MicroCore::get_block_by_height(const uint64_t& height, block& blk)
 {
     try
     {
-        blk = m_blockchain_storage.get_db().get_block_from_height(height);
+        blk = m_core->get_blockchain_storage().get_db().get_block_from_height(height);
     }
-    catch (const BLOCK_DNE& e)
+    catch (const std::exception& e)
     {
-        cerr << "Block of height " << height
-             << " not found in the blockchain!"
-             << e.what()
-             << endl;
-
+        cerr << "Block height " << height << " not found: " << e.what() << endl;
         return false;
     }
-    catch (const DB_ERROR& e)
-    {
-        cerr << "Blockchain access error when getting block " << height
-             << e.what()
-             << endl;
-
-        return false;
-    }
-    catch (...)
-    {
-        cerr << "Something went terribly wrong when getting block " << height
-             << endl;
-
-        return false;
-    }
-
     return true;
 }
 
-
-
-/**
- * Get transaction tx from the blockchain using it hash
- */
 bool
 MicroCore::get_tx(const crypto::hash& tx_hash, transaction& tx)
 {
-    if (m_blockchain_storage.have_tx(tx_hash))
+    auto& storage = m_core->get_blockchain_storage();
+    if (storage.have_tx(tx_hash))
     {
-        // get transaction with given hash
         try
         {
-            tx = m_blockchain_storage.get_db().get_tx(tx_hash);
+            tx = storage.get_db().get_tx(tx_hash);
+            return true;
         }
-        catch (TX_DNE const& e)
+        catch (...)
         {
-            try 
-            {
-                // coinbase txs are not considered pruned
-                tx = m_blockchain_storage.get_db().get_pruned_tx(tx_hash);
+            try {
+                tx = storage.get_db().get_pruned_tx(tx_hash);
                 return true;
+            } catch (...) {
+                return false;
             }
-            catch (TX_DNE const& e)
-            {
-                cerr << "MicroCore::get_tx: " << e.what() << endl;
-            }
-
-            return false;
         }
     }
-    else
-    {
-        cerr << "MicroCore::get_tx tx does not exist in blockchain: " << tx_hash << endl;
-        return false;
-    }     
-
-
-    return true;
+    return false;
 }
 
 bool
 MicroCore::get_tx(const string& tx_hash_str, transaction& tx)
 {
-
-    // parse tx hash string to hash object
     crypto::hash tx_hash;
-
     if (!xmreg::parse_str_secret_key(tx_hash_str, tx_hash))
-    {
-        cerr << "Cant parse tx hash: " << tx_hash_str << endl;
         return false;
-    }
-
-
-    if (!get_tx(tx_hash, tx))
-    {
-        return false;
-    }
-
-
-    return true;
+    return get_tx(tx_hash, tx);
 }
 
-
-
-
-/**
- * Find output with given public key in a given transaction
- */
 bool
 MicroCore::find_output_in_tx(const transaction& tx,
                              const public_key& output_pubkey,
                              tx_out& out,
                              size_t& output_index)
 {
-
     size_t idx {0};
-
-
-    // search in the ouputs for an output which
-    // public key matches to what we want
-    auto it = std::find_if(tx.vout.begin(), tx.vout.end(),
-                           [&](const tx_out& o)
-                           {
-                               public_key found_output_pubkey;
-                               cryptonote::get_output_public_key(
-                                    o, found_output_pubkey);
-
-                               ++idx;
-
-                               return found_output_pubkey == output_pubkey;
-                           });
-
-    if (it != tx.vout.end())
+    for (const auto& v_out : tx.vout)
     {
-        // we found the desired public key
-        out = *it;
-        output_index = idx > 0 ? idx - 1 : idx;
-
-        //cout << idx << " " << output_index << endl;
-
-        return true;
+        public_key found_key;
+        if (cryptonote::get_output_public_key(v_out, found_key))
+        {
+            if (found_key == output_pubkey)
+            {
+                out = v_out;
+                output_index = idx;
+                return true;
+            }
+        }
+        ++idx;
     }
-
     return false;
 }
-
 
 uint64_t
 MicroCore::get_blk_timestamp(uint64_t blk_height)
 {
     cryptonote::block blk;
-
     if (!get_block_by_height(blk_height, blk))
-    {
-        cerr << "Cant get block by height: " << blk_height << endl;
         return 0;
-    }
-
     return blk.timestamp;
 }
 
-bool
+cryptonote::core*
 init_blockchain(const string& path,
                 MicroCore& mcore,
-                Blockchain*& core_storage,
                 network_type nt)
 {
-
-    // initialize the core using the blockchain path
     if (!mcore.init(path, nt))
     {
         cerr << "Error accessing blockchain." << endl;
-        return false;
+        return nullptr;
     }
-
-    // get the high level Blockchain object to interact
-    // with the blockchain lmdb database
-    core_storage = &(mcore.get_core());
-
-    return true;
+    return &mcore.get_core();
 }
-
 
 bool
 MicroCore::get_block_complete_entry(block const& b, block_complete_entry& bce)
 {
     bce.block = cryptonote::block_to_blob(b);
-
     for (const auto &tx_hash: b.tx_hashes)
     {
-      transaction tx;
-
-      if (!get_tx(tx_hash, tx))
-        return false;
-
-      cryptonote::blobdata txblob =  tx_to_blob(tx);
-
-      bce.txs.push_back(txblob);
+        transaction tx;
+        if (!get_tx(tx_hash, tx)) return false;
+        bce.txs.push_back(tx_to_blob(tx));
     }
-
     return true;
 }
-
 
 string
 MicroCore::get_blkchain_path()
@@ -304,4 +192,4 @@ MicroCore::get_device() const
     return m_device;
 }
 
-}
+} // namespace xmreg

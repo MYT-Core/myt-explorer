@@ -202,15 +202,24 @@ main(int ac, const char* av[])
     // create instance of our MicroCore
     // and make pointer to the Blockchain
     xmreg::MicroCore mcore;
-    cryptonote::Blockchain* core_storage;
+    cryptonote::Blockchain* core_storage = nullptr;
 
     // initialize mcore and core_storage
-    if (!xmreg::init_blockchain(blockchain_path.string(),
-                               mcore, core_storage, nettype))
+    if (!xmreg::init_blockchain(blockchain_path.string(), mcore, nettype))
     {
         cerr << "Error accessing blockchain." << endl;
         return EXIT_FAILURE;
     }
+
+
+    core_storage = &mcore.get_core().get_blockchain_storage();
+
+    
+    if (core_storage == nullptr) {
+        cerr << "Error: core_storage is still null!" << endl;
+        return EXIT_FAILURE;
+    }
+
 
     string daemon_url {*daemon_url_opt};
 

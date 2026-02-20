@@ -1903,7 +1903,7 @@ show_my_outputs(string tx_hash_str,
 
     if (xmr_address_str.empty())
     {
-        return string("Monero address not provided!");
+        return string("MYT address not provided!");
     }
 
     if (viewkey_str.empty())
@@ -2797,16 +2797,15 @@ show_checkrawtx(string raw_tx_data, string action)
     add_css_style(context);
 
 
-    if (unsigned_tx_given)
+if (unsigned_tx_given)
     {
-
         bool r {false};
 
         string s = decoded_raw_tx_data.substr(magiclen);
 
         ::tools::wallet2::unsigned_tx_set exported_txs;
-
-        try
+        
+        /* try
         {
             std::istringstream iss(s);
             boost::archive::portable_binary_iarchive ar(iss);
@@ -2814,11 +2813,12 @@ show_checkrawtx(string raw_tx_data, string action)
 
             r = true;
         }
+        
         catch (...)
         {
             cerr << "Failed to parse unsigned tx data " << endl;
         }
-
+*/
         if (r)
         {
             mstch::array& txs = boost::get<mstch::array>(context["txs"]);
@@ -3156,19 +3156,20 @@ show_checkrawtx(string raw_tx_data, string action)
 
         ::tools::wallet2::signed_tx_set signed_txs;
 
-        try
+       /* try
         {
             std::istringstream iss(s);
             boost::archive::portable_binary_iarchive ar(iss);
             ar >> signed_txs;
 
             r = true;
+            
         }
         catch (...)
         {
             cerr << "Failed to parse signed tx data " << endl;
         }
-
+*/
         if (!r)
         {
             cerr << "deserialization of signed tx data NOT successful" << endl;
@@ -3467,7 +3468,7 @@ show_pushrawtx(string raw_tx_data, string action)
         string s = decoded_raw_tx_data.substr(magiclen);
 
         ::tools::wallet2::signed_tx_set signed_txs;
-
+/*
         try
         {
             std::istringstream iss(s);
@@ -3481,7 +3482,7 @@ show_pushrawtx(string raw_tx_data, string action)
             cerr << "Failed to parse signed tx data " << endl;
         }
 
-
+*/
         if (!r)
         {
             string error_msg = fmt::format("Deserialization of signed tx data NOT successful! "
@@ -5288,7 +5289,7 @@ json_outputs(string tx_hash_str,
     if (address_str.empty())
     {
         j_response["status"]  = "error";
-        j_response["message"] = "Monero address not provided";
+        j_response["message"] = "MYT address not provided";
         return j_response;
     }
 
@@ -5325,7 +5326,7 @@ json_outputs(string tx_hash_str,
     if (!xmreg::parse_str_address(address_str,  address_info, nettype))
     {
         j_response["status"]  = "error";
-        j_response["message"] = "Cant parse monero address: " + address_str;
+        j_response["message"] = "Cant parse MYT address: " + address_str;
         return j_response;
 
     }
@@ -5560,7 +5561,7 @@ json_outputsblocks(string startblock,
     if (address_str.empty())
     {
         j_response["status"]  = "error";
-        j_response["message"] = "Monero address not provided";
+        j_response["message"] = "MYT address not provided";
         return j_response;
     }
 
@@ -5577,7 +5578,7 @@ json_outputsblocks(string startblock,
     if (!xmreg::parse_str_address(address_str, address_info, nettype))
     {
         j_response["status"]  = "error";
-        j_response["message"] = "Cant parse monero address: " + address_str;
+        j_response["message"] = "Cant parse MYT address: " + address_str;
         return j_response;
 
     }
@@ -5808,7 +5809,7 @@ json_version()
             {"last_git_commit_hash", string {GIT_COMMIT_HASH}},
             {"last_git_commit_date", string {GIT_COMMIT_DATETIME}},
             {"git_branch_name"     , string {GIT_BRANCH_NAME}},
-            {"monero_version_full" , string {MONERO_VERSION_FULL}},
+            {"monero_version_full" , string {MYT_VERSION_FULL}},
             {"api"                 , ONIONEXPLORER_RPC_VERSION},
             {"blockchain_height"   , core_storage->get_current_blockchain_height()}
     };
@@ -6925,7 +6926,7 @@ get_footer()
             {"last_git_commit_hash", string {GIT_COMMIT_HASH}},
             {"last_git_commit_date", string {GIT_COMMIT_DATETIME}},
             {"git_branch_name"     , string {GIT_BRANCH_NAME}},
-            {"monero_version_full" , string {MONERO_VERSION_FULL}},
+            {"monero_version_full" , string {MYT_VERSION_FULL}},
             {"api"                 , std::to_string(ONIONEXPLORER_RPC_VERSION_MAJOR)
                                      + "."
                                      + std::to_string(ONIONEXPLORER_RPC_VERSION_MINOR)},
@@ -7088,4 +7089,3 @@ get_tx_amount_output_indices(vector<uint64_t>& out_amount_indices, Args&&... arg
 }
 
 #endif //CROWXMR_PAGE_H
-

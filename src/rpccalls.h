@@ -165,14 +165,14 @@ public:
 
             if (!err.empty())
             {
-                cerr << "Error connecting to Monero daemon due to "
+                cerr << "Error connecting to MYT daemon due to "
                      << err << endl;
                 return false;
             }
         }
         else
         {
-            cerr << "Error connecting to Monero daemon at "
+            cerr << "Error connecting to MYT daemon at "
                  << daemon_url << endl;
             return false;
         }

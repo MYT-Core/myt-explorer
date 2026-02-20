@@ -93,130 +93,30 @@ MempoolStatus::start_mempool_status_thread()
 }
 
 
+
 bool
 MempoolStatus::read_mempool()
 {
-    rpccalls rpc {daemon_url, login};
+    // Wir deaktivieren den direkten Datenbank-Zugriff auf den Mempool,
+    // da unser MicroCore keinen gültigen Mempool-Pointer hat.
+    // Die Statistiken kommen stattdessen über den RPC-Call in read_network_info.
 
-    string error_msg;
-
-    // we populate this variable instead of global mempool_txs
-    // mempool_txs will be changed only when this function completes.
-    // this ensures that we don't sent out partial mempool txs to
-    // other places.
     vector<mempool_tx> local_copy_of_mempool_txs;
-
-    // get txs in the mempool
-    std::vector<tx_info> mempool_tx_info;
-
-    //std::vector<tx_info> pool_tx_info;
-    std::vector<spent_key_image_info> pool_key_image_info;
-
-    // get txpool from lmdb database instead of rpc call
-    if (!mcore->get_mempool().get_transactions_and_spent_keys_info(
-                mempool_tx_info,
-                pool_key_image_info,
-                true))
-    {
-        cerr << "Getting mempool failed " << endl;
-        return false;
-    }
-
-    (void) pool_key_image_info;
-
-    // sort txpool txs
-
-    // mempool txs are not sorted base on their arival time,
-    // so we sort it here.
-
-    std::sort(mempool_tx_info.begin(), mempool_tx_info.end(),
-    [](tx_info& t1, tx_info& t2)
-    {
-        return t1.receive_time > t2.receive_time;
-    });
-
-
-    // if dont have tx_blob member, construct tx
-    // from json obtained from the rpc call
-
-    uint64_t mempool_size_kB {0};
-
-    for (size_t i = 0; i < mempool_tx_info.size(); ++i)
-    {
-        // get transaction info of the tx in the mempool
-        const tx_info& _tx_info = mempool_tx_info.at(i);
-
-        transaction tx;
-        crypto::hash tx_hash;
-        crypto::hash tx_prefix_hash;
-
-        if (!parse_and_validate_tx_from_blob(
-                _tx_info.tx_blob, tx, tx_hash, tx_prefix_hash))
-        {
-            cerr << "Cant make tx from _tx_info.tx_blob" << endl;
-            return false;
-        }
-
-        mempool_size_kB += _tx_info.blob_size;
-
-        local_copy_of_mempool_txs.push_back(mempool_tx{});
-
-        mempool_tx& last_tx = local_copy_of_mempool_txs.back();
-
-        last_tx.tx_hash = tx_hash;
-        last_tx.tx = tx;
-
-        // key images of inputs
-        vector<txin_to_key> input_key_imgs;
-
-        // public keys and xmr amount of outputs
-        vector<output_tuple_with_tag> output_pub_keys;
-
-        // sum xmr in inputs and ouputs in the given tx
-        const array<uint64_t, 4>& sum_data = summary_of_in_out_rct(
-               tx, output_pub_keys, input_key_imgs);
-
-
-        double tx_size =  static_cast<double>(_tx_info.blob_size)/1024.0;
-
-        double payed_for_kB = XMR_AMOUNT(_tx_info.fee) / tx_size;
-
-        last_tx.receive_time = _tx_info.receive_time;
-
-        last_tx.sum_outputs       = sum_data[0];
-        last_tx.sum_inputs        = sum_data[1];
-        last_tx.no_outputs        = output_pub_keys.size();
-        last_tx.no_inputs         = input_key_imgs.size();
-        last_tx.mixin_no          = sum_data[2];
-        last_tx.num_nonrct_inputs = sum_data[3];
-
-        last_tx.fee_str          = xmreg::xmr_amount_to_str(_tx_info.fee, "{:0.4f}", false);
-        last_tx.fee_micro_str    = xmreg::xmr_amount_to_str(_tx_info.fee*1.0e6, "{:04.0f}", false);
-        last_tx.payed_for_kB_str = fmt::format("{:0.4f}", payed_for_kB);
-        last_tx.payed_for_kB_micro_str = fmt::format("{:04.0f}", payed_for_kB*1e6);
-        last_tx.xmr_inputs_str   = xmreg::xmr_amount_to_str(last_tx.sum_inputs , "{:0.3f}");
-        last_tx.xmr_outputs_str  = xmreg::xmr_amount_to_str(last_tx.sum_outputs, "{:0.3f}");
-        last_tx.timestamp_str    = xmreg::timestamp_to_str_gm(_tx_info.receive_time);
-
-        last_tx.txsize           = fmt::format("{:0.2f}", tx_size);
-
-    } // for (size_t i = 0; i < mempool_tx_info.size(); ++i)
-
-
 
     Guard lck (mempool_mutx);
 
-    // clear current mempool txs vector
-    // repopulate it with each execution of read_mempool()
-    // not very efficient but good enough for now.
-
-    mempool_no   = local_copy_of_mempool_txs.size();
-    mempool_size = mempool_size_kB;
+    // Wir setzen die Anzahl einfach auf 0 oder lassen sie so, 
+    // wie sie vom RPC gemeldet wurde.
+    mempool_no   = 0;
+    mempool_size = 0;
 
     mempool_txs = std::move(local_copy_of_mempool_txs);
 
     return true;
 }
+
+
+
 
 
 bool
