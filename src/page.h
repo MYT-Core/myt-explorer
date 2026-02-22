@@ -1065,8 +1065,8 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
         uint64_t eta_minutes = (eta_seconds % 3600) / 60;
 
         context["supply_stats"] = mstch::map {
-                {"max_supply"       , fmt::format("{:0.0Lf}", max_supply_coins)},
-                {"pct_mined"        , fmt::format("{:0.4Lf}", pct_mined)},
+                {"max_supply"       , fmt::format("{:0.0f}", static_cast<double>(max_supply_coins))},
+                {"pct_mined"        , fmt::format("{:0.4f}", static_cast<double>(pct_mined))},
                 {"blocks_to_halving", blocks_until_halving},
                 {"next_halving_h"   , next_halving_height},
                 {"halving_eta"      , fmt::format("{}d {}h {}m", eta_days, eta_hours, eta_minutes)}
