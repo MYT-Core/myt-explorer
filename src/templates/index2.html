@@ -53,9 +53,25 @@
         </h3>
     {{/network_info}}
 
+    {{#avg_blocktime}}
+        <h3 style="font-size: 12px; margin-top: 2px">
+            Average block time (last {{blocks}} blocks): {{seconds}} s
+        </h3>
+    {{/avg_blocktime}}
+
+    {{#hashrate_chart}}
+        <h3 style="font-size: 12px; margin-top: 2px">
+            Smoothed estimated hashrate (last {{points}} blocks): <code>{{chart}}</code>
+            | Latest: {{latest}} | Avg: {{average}}
+        </h3>
+    {{/hashrate_chart}}
+
     {{#emission}}
         <h3 style="font-size: 12px; margin-top: 2px">
-            MYT emission (fees) is {{amount}} ({{fee_amount}}) as of {{blk_no}} block
+            Circulating supply: {{circulating_supply}} MYT
+            | Total fees: {{fee_amount}} MYT
+            | Total emitted (supply + fees): {{total_emitted}} MYT
+            | Height: {{blk_no}}
         </h3>
     {{/emission}}
 

@@ -49,6 +49,7 @@ extern  __thread randomx_vm *main_vm_full;
 #include <ctime>
 #include <future>
 #include <type_traits>
+#include <cmath>
 
 
 #define TMPL_DIR                    "./templates"
@@ -633,9 +634,14 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
     int64_t end_height = start_height + no_of_last_blocks - 1;
 
     vector<double> blk_sizes;
+    vector<uint64_t> block_intervals_sec;
+    vector<double> estimated_hashrates_hs;
 
     // loop index
     int64_t i = end_height;
+    uint64_t prev_timestamp {0};
+    uint64_t prev_height {0};
+    bool has_prev_block {false};
 
     // iterate over last no_of_last_blocks of blocks
     while (i >= start_height)
@@ -668,6 +674,31 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
         pair<string, string> age = get_age(local_copy_server_timestamp, blk.timestamp);
 
         context["age_format"] = age.second;
+
+        if (has_prev_block && prev_timestamp > blk.timestamp)
+        {
+            uint64_t solve_time = prev_timestamp - blk.timestamp;
+
+            if (solve_time > 0)
+            {
+                block_intervals_sec.push_back(solve_time);
+
+                cryptonote::difficulty_type prev_diff
+                        = core_storage->get_db().get_block_difficulty(prev_height);
+
+                double est_hashrate = prev_diff.convert_to<double>()
+                                      / static_cast<double>(solve_time);
+
+                if (std::isfinite(est_hashrate) && est_hashrate > 0.0)
+                {
+                    estimated_hashrates_hs.push_back(est_hashrate);
+                }
+            }
+        }
+
+        prev_timestamp = blk.timestamp;
+        prev_height = i;
+        has_prev_block = true;
 
         // start measure time here
         auto start = std::chrono::steady_clock::now();
@@ -787,6 +818,90 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             {"age_format"        , network_info_age.second},
     };
 
+    if (!block_intervals_sec.empty())
+    {
+        size_t avg_n = std::min<size_t>(30, block_intervals_sec.size());
+        double avg_block_time = 0.0;
+
+        for (size_t idx = 0; idx < avg_n; ++idx)
+            avg_block_time += static_cast<double>(block_intervals_sec[idx]);
+
+        avg_block_time /= static_cast<double>(avg_n);
+
+        context["avg_blocktime"] = mstch::map {
+                {"seconds", fmt::format("{:0.1f}", avg_block_time)},
+                {"blocks" , static_cast<uint64_t>(avg_n)}
+        };
+    }
+
+    if (!estimated_hashrates_hs.empty())
+    {
+        // Smooth hashrate with EMA over oldest->newest samples.
+        vector<double> ordered_hashrates = estimated_hashrates_hs;
+        std::reverse(ordered_hashrates.begin(), ordered_hashrates.end());
+
+        vector<double> smoothed;
+        smoothed.reserve(ordered_hashrates.size());
+
+        const double alpha = 0.35;
+        double ema = ordered_hashrates.front();
+        smoothed.push_back(ema);
+
+        for (size_t idx = 1; idx < ordered_hashrates.size(); ++idx)
+        {
+            ema = alpha * ordered_hashrates[idx] + (1.0 - alpha) * ema;
+            smoothed.push_back(ema);
+        }
+
+        size_t chart_points = std::min<size_t>(24, smoothed.size());
+        size_t chart_start = smoothed.size() - chart_points;
+
+        double min_v = smoothed[chart_start];
+        double max_v = smoothed[chart_start];
+        double avg_v = 0.0;
+
+        for (size_t idx = chart_start; idx < smoothed.size(); ++idx)
+        {
+            min_v = std::min(min_v, smoothed[idx]);
+            max_v = std::max(max_v, smoothed[idx]);
+            avg_v += smoothed[idx];
+        }
+
+        avg_v /= static_cast<double>(chart_points);
+
+        const string palette = " .:-=+*#%@";
+        const double span = std::max(1e-12, max_v - min_v);
+        string chart;
+        chart.reserve(chart_points);
+
+        for (size_t idx = chart_start; idx < smoothed.size(); ++idx)
+        {
+            double norm = (smoothed[idx] - min_v) / span;
+            size_t p = static_cast<size_t>(norm * (palette.size() - 1));
+            p = std::min(p, palette.size() - 1);
+            chart.push_back(palette[p]);
+        }
+
+        auto format_hashrate = [](double hs) -> string
+        {
+            static const char* units[] = {"H/s", "kH/s", "MH/s", "GH/s", "TH/s"};
+            size_t unit_idx = 0;
+            while (hs >= 1000.0 && unit_idx < 4)
+            {
+                hs /= 1000.0;
+                ++unit_idx;
+            }
+            return fmt::format("{:0.3f} {}", hs, units[unit_idx]);
+        };
+
+        context["hashrate_chart"] = mstch::map {
+                {"chart"  , chart},
+                {"latest" , format_hashrate(smoothed.back())},
+                {"average", format_hashrate(avg_v)},
+                {"points" , static_cast<uint64_t>(chart_points)}
+        };
+    }
+
     // median size of 100 blocks
     context["blk_size_median"] = string {current_network_info.block_size_median_str};
 
@@ -812,13 +927,16 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
                 = CurrentBlockchainStatus::get_emission();
 
         string emission_blk_no   = std::to_string(current_values.blk_no - 1);
-        string emission_coinbase = xmr_amount_to_str(current_values.coinbase, "{:0.3f}");
-        string emission_fee      = xmr_amount_to_str(current_values.fee, "{:0.3f}");
+        string circulating_supply = xmr_amount_to_str(current_values.coinbase, "{:0.3f}");
+        string emission_fee       = xmr_amount_to_str(current_values.fee, "{:0.3f}");
+        string emission_total     = xmr_amount_to_str(
+                current_values.coinbase + current_values.fee, "{:0.3f}");
 
         context["emission"] = mstch::map {
-                {"blk_no"    , emission_blk_no},
-                {"amount"    , emission_coinbase},
-                {"fee_amount", emission_fee}
+                {"blk_no"            , emission_blk_no},
+                {"circulating_supply", circulating_supply},
+                {"fee_amount"        , emission_fee},
+                {"total_emitted"     , emission_total}
         };
     }
     else
