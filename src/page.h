@@ -1004,6 +1004,10 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
                 {"from_height", static_cast<uint64_t>(0)},
                 {"to_height"  , tip_height}
         };
+
+        // Keep hashrate card consistent with chart headline.
+        mstch::map& net_map = boost::get<mstch::map>(context["network_info"]);
+        net_map["hash_rate"] = format_hashrate(smoothed.back());
     }
 
     // median size of 100 blocks
