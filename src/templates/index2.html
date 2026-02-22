@@ -61,9 +61,12 @@
 
     {{#hashrate_chart}}
         <h3 style="font-size: 12px; margin-top: 2px">
-            Smoothed estimated hashrate (last {{points}} blocks): <code>{{chart}}</code>
+            Smoothed estimated hashrate (last {{points}} blocks)
             | Latest: {{latest}} | Avg: {{average}}
         </h3>
+        <div style="display:flex; justify-content:center; margin-top: 4px; margin-bottom: 4px;">
+            {{{svg}}}
+        </div>
     {{/hashrate_chart}}
 
     {{#emission}}

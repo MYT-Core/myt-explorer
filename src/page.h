@@ -634,14 +634,9 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
     int64_t end_height = start_height + no_of_last_blocks - 1;
 
     vector<double> blk_sizes;
-    vector<uint64_t> block_intervals_sec;
-    vector<double> estimated_hashrates_hs;
 
     // loop index
     int64_t i = end_height;
-    uint64_t prev_timestamp {0};
-    uint64_t prev_height {0};
-    bool has_prev_block {false};
 
     // iterate over last no_of_last_blocks of blocks
     while (i >= start_height)
@@ -674,31 +669,6 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
         pair<string, string> age = get_age(local_copy_server_timestamp, blk.timestamp);
 
         context["age_format"] = age.second;
-
-        if (has_prev_block && prev_timestamp > blk.timestamp)
-        {
-            uint64_t solve_time = prev_timestamp - blk.timestamp;
-
-            if (solve_time > 0)
-            {
-                block_intervals_sec.push_back(solve_time);
-
-                cryptonote::difficulty_type prev_diff
-                        = core_storage->get_db().get_block_difficulty(prev_height);
-
-                double est_hashrate = prev_diff.convert_to<double>()
-                                      / static_cast<double>(solve_time);
-
-                if (std::isfinite(est_hashrate) && est_hashrate > 0.0)
-                {
-                    estimated_hashrates_hs.push_back(est_hashrate);
-                }
-            }
-        }
-
-        prev_timestamp = blk.timestamp;
-        prev_height = i;
-        has_prev_block = true;
 
         // start measure time here
         auto start = std::chrono::steady_clock::now();
@@ -771,6 +741,48 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
     // calculate median size of the blocks shown
     //double blk_size_median = xmreg::calc_median(blk_sizes.begin(), blk_sizes.end());
 
+    // Metrics window is independent from pagination so page 0/page N show same values.
+    vector<uint64_t> metrics_block_intervals_sec;
+    vector<double> metrics_hashrates_hs;
+
+    if (height > 2)
+    {
+        uint64_t tip_height = static_cast<uint64_t>(height - 1);
+        uint64_t max_intervals = std::min<uint64_t>(180, tip_height);
+
+        for (uint64_t k = 0; k < max_intervals; ++k)
+        {
+            uint64_t h = tip_height - k;
+            if (h == 0)
+                break;
+
+            block curr_blk;
+            block prev_blk;
+
+            if (!mcore->get_block_by_height(h, curr_blk)
+                    || !mcore->get_block_by_height(h - 1, prev_blk))
+            {
+                continue;
+            }
+
+            if (curr_blk.timestamp <= prev_blk.timestamp)
+            {
+                continue;
+            }
+
+            uint64_t solve_time = curr_blk.timestamp - prev_blk.timestamp;
+            metrics_block_intervals_sec.push_back(solve_time);
+
+            cryptonote::difficulty_type diff = core_storage->get_db().get_block_difficulty(h);
+            double est_hashrate = diff.convert_to<double>() / static_cast<double>(solve_time);
+
+            if (std::isfinite(est_hashrate) && est_hashrate > 0.0)
+            {
+                metrics_hashrates_hs.push_back(est_hashrate);
+            }
+        }
+    }
+
     // get current network info from MemoryStatus thread.
     MempoolStatus::network_info current_network_info
         = MempoolStatus::current_network_info;
@@ -818,13 +830,13 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             {"age_format"        , network_info_age.second},
     };
 
-    if (!block_intervals_sec.empty())
+    if (!metrics_block_intervals_sec.empty())
     {
-        size_t avg_n = std::min<size_t>(30, block_intervals_sec.size());
+        size_t avg_n = std::min<size_t>(30, metrics_block_intervals_sec.size());
         double avg_block_time = 0.0;
 
         for (size_t idx = 0; idx < avg_n; ++idx)
-            avg_block_time += static_cast<double>(block_intervals_sec[idx]);
+            avg_block_time += static_cast<double>(metrics_block_intervals_sec[idx]);
 
         avg_block_time /= static_cast<double>(avg_n);
 
@@ -834,10 +846,10 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
         };
     }
 
-    if (!estimated_hashrates_hs.empty())
+    if (!metrics_hashrates_hs.empty())
     {
         // Smooth hashrate with EMA over oldest->newest samples.
-        vector<double> ordered_hashrates = estimated_hashrates_hs;
+        vector<double> ordered_hashrates = metrics_hashrates_hs;
         std::reverse(ordered_hashrates.begin(), ordered_hashrates.end());
 
         vector<double> smoothed;
@@ -853,7 +865,7 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             smoothed.push_back(ema);
         }
 
-        size_t chart_points = std::min<size_t>(24, smoothed.size());
+        size_t chart_points = std::min<size_t>(60, smoothed.size());
         size_t chart_start = smoothed.size() - chart_points;
 
         double min_v = smoothed[chart_start];
@@ -869,18 +881,7 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
 
         avg_v /= static_cast<double>(chart_points);
 
-        const string palette = " .:-=+*#%@";
         const double span = std::max(1e-12, max_v - min_v);
-        string chart;
-        chart.reserve(chart_points);
-
-        for (size_t idx = chart_start; idx < smoothed.size(); ++idx)
-        {
-            double norm = (smoothed[idx] - min_v) / span;
-            size_t p = static_cast<size_t>(norm * (palette.size() - 1));
-            p = std::min(p, palette.size() - 1);
-            chart.push_back(palette[p]);
-        }
 
         auto format_hashrate = [](double hs) -> string
         {
@@ -894,8 +895,60 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             return fmt::format("{:0.3f} {}", hs, units[unit_idx]);
         };
 
+        // Server-side SVG chart (no JavaScript needed).
+        const double svg_w = 660.0;
+        const double svg_h = 170.0;
+        const double pad_l = 42.0;
+        const double pad_r = 10.0;
+        const double pad_t = 12.0;
+        const double pad_b = 24.0;
+        const double plot_w = svg_w - pad_l - pad_r;
+        const double plot_h = svg_h - pad_t - pad_b;
+
+        std::ostringstream polyline_points;
+        std::ostringstream area_points;
+
+        double first_x = pad_l;
+        double last_x = pad_l;
+
+        for (size_t i_pt = 0; i_pt < chart_points; ++i_pt)
+        {
+            size_t idx = chart_start + i_pt;
+            double x = pad_l + ((chart_points == 1)
+                                ? 0.0
+                                : (plot_w * static_cast<double>(i_pt) / static_cast<double>(chart_points - 1)));
+            double y_norm = (smoothed[idx] - min_v) / span;
+            double y = pad_t + (1.0 - y_norm) * plot_h;
+
+            if (i_pt == 0) first_x = x;
+            if (i_pt == chart_points - 1) last_x = x;
+
+            polyline_points << fmt::format("{:0.1f},{:0.1f} ", x, y);
+        }
+
+        area_points << fmt::format("{:0.1f},{:0.1f} ", first_x, pad_t + plot_h);
+        area_points << polyline_points.str();
+        area_points << fmt::format("{:0.1f},{:0.1f}", last_x, pad_t + plot_h);
+
+        std::ostringstream svg;
+        svg << "<svg viewBox='0 0 660 170' width='660' height='170' "
+               "role='img' aria-label='Smoothed estimated hashrate chart'>";
+        svg << "<rect x='0' y='0' width='660' height='170' fill='none' stroke='#2a2a2a' />";
+        for (int g = 0; g <= 4; ++g)
+        {
+            double gy = pad_t + plot_h * static_cast<double>(g) / 4.0;
+            svg << fmt::format("<line x1='{:.1f}' y1='{:.1f}' x2='{:.1f}' y2='{:.1f}' "
+                               "stroke='#1f1f1f' stroke-width='1' />",
+                               pad_l, gy, pad_l + plot_w, gy);
+        }
+        svg << "<polygon points='" << area_points.str()
+            << "' fill='#ff7a1a' fill-opacity='0.20' />";
+        svg << "<polyline points='" << polyline_points.str()
+            << "' fill='none' stroke='#ff7a1a' stroke-width='2' />";
+        svg << "</svg>";
+
         context["hashrate_chart"] = mstch::map {
-                {"chart"  , chart},
+                {"svg"    , svg.str()},
                 {"latest" , format_hashrate(smoothed.back())},
                 {"average", format_hashrate(avg_v)},
                 {"points" , static_cast<uint64_t>(chart_points)}
