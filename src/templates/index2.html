@@ -53,6 +53,35 @@
         </h3>
     {{/network_info}}
 
+    <div class="stats-cards">
+        {{#summary_block}}
+        <div class="stat-card">
+            <div class="stat-title">Block</div>
+            <div class="stat-value">#{{height}}</div>
+            <div class="stat-sub">{{age}}</div>
+        </div>
+        {{/summary_block}}
+        {{#network_info}}
+        <div class="stat-card">
+            <div class="stat-title">Hashrate</div>
+            <div class="stat-value">{{hash_rate}}</div>
+            <div class="stat-sub">Network hashrate</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-title">Difficulty</div>
+            <div class="stat-value">{{difficulty}}</div>
+            <div class="stat-sub">Current difficulty</div>
+        </div>
+        {{/network_info}}
+        {{#emission}}
+        <div class="stat-card">
+            <div class="stat-title">Coin supply</div>
+            <div class="stat-value">{{circulating_supply}} MYT</div>
+            <div class="stat-sub">Circulating supply</div>
+        </div>
+        {{/emission}}
+    </div>
+
     {{#avg_blocktime}}
         <h3 style="font-size: 12px; margin-top: 2px">
             Average block time (last {{blocks}} blocks): {{seconds}} s
@@ -61,7 +90,7 @@
 
     {{#hashrate_chart}}
         <h3 style="font-size: 12px; margin-top: 2px">
-            Smoothed estimated hashrate (last {{points}} blocks)
+            Smoothed estimated hashrate (heights {{from_height}} to {{to_height}})
             | Latest: {{latest}} | Avg: {{average}}
         </h3>
         <div style="display:flex; justify-content:center; margin-top: 4px; margin-bottom: 4px;">

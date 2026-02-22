@@ -741,18 +741,32 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
     // calculate median size of the blocks shown
     //double blk_size_median = xmreg::calc_median(blk_sizes.begin(), blk_sizes.end());
 
-    // Metrics window is independent from pagination so page 0/page N show same values.
+    uint64_t tip_height = (height > 0) ? static_cast<uint64_t>(height - 1) : 0;
+
+    if (height > 0)
+    {
+        block tip_blk;
+        if (mcore->get_block_by_height(tip_height, tip_blk))
+        {
+            pair<string, string> tip_age = get_age(local_copy_server_timestamp, tip_blk.timestamp);
+            context["summary_block"] = mstch::map {
+                    {"height", tip_height},
+                    {"age", tip_age.first + " " + tip_age.second + " ago"}
+            };
+        }
+    }
+
+    // Metrics are independent from explorer pagination.
     vector<uint64_t> metrics_block_intervals_sec;
     vector<double> metrics_hashrates_hs;
 
-    if (height > 2)
+    if (tip_height > 1)
     {
-        uint64_t tip_height = static_cast<uint64_t>(height - 1);
-        uint64_t max_intervals = std::min<uint64_t>(180, tip_height);
-
-        for (uint64_t k = 0; k < max_intervals; ++k)
+        // 1) Last N block intervals for average block time card.
+        uint64_t avg_window = std::min<uint64_t>(30, tip_height);
+        for (uint64_t off = 0; off < avg_window; ++off)
         {
-            uint64_t h = tip_height - k;
+            uint64_t h = tip_height - off;
             if (h == 0)
                 break;
 
@@ -761,25 +775,49 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
 
             if (!mcore->get_block_by_height(h, curr_blk)
                     || !mcore->get_block_by_height(h - 1, prev_blk))
-            {
                 continue;
-            }
 
             if (curr_blk.timestamp <= prev_blk.timestamp)
-            {
                 continue;
-            }
 
-            uint64_t solve_time = curr_blk.timestamp - prev_blk.timestamp;
-            metrics_block_intervals_sec.push_back(solve_time);
+            metrics_block_intervals_sec.push_back(curr_blk.timestamp - prev_blk.timestamp);
+        }
 
-            cryptonote::difficulty_type diff = core_storage->get_db().get_block_difficulty(h);
-            double est_hashrate = diff.convert_to<double>() / static_cast<double>(solve_time);
+        // 2) Full history hashrate from height 1..tip, downsampled into buckets.
+        size_t target_points = static_cast<size_t>(std::min<uint64_t>(200, tip_height));
+        uint64_t bucket_size = std::max<uint64_t>(1, tip_height / std::max<size_t>(1, target_points));
 
-            if (std::isfinite(est_hashrate) && est_hashrate > 0.0)
+        for (uint64_t bucket_start = 1; bucket_start <= tip_height; bucket_start += bucket_size)
+        {
+            uint64_t bucket_end = std::min<uint64_t>(tip_height, bucket_start + bucket_size - 1);
+            double bucket_sum = 0.0;
+            uint64_t bucket_n = 0;
+
+            for (uint64_t h = bucket_start; h <= bucket_end; ++h)
             {
-                metrics_hashrates_hs.push_back(est_hashrate);
+                block curr_blk;
+                block prev_blk;
+
+                if (!mcore->get_block_by_height(h, curr_blk)
+                        || !mcore->get_block_by_height(h - 1, prev_blk))
+                    continue;
+
+                if (curr_blk.timestamp <= prev_blk.timestamp)
+                    continue;
+
+                uint64_t solve_time = curr_blk.timestamp - prev_blk.timestamp;
+                cryptonote::difficulty_type diff = core_storage->get_db().get_block_difficulty(h);
+                double est_hashrate = diff.convert_to<double>() / static_cast<double>(solve_time);
+
+                if (std::isfinite(est_hashrate) && est_hashrate > 0.0)
+                {
+                    bucket_sum += est_hashrate;
+                    ++bucket_n;
+                }
             }
+
+            if (bucket_n > 0)
+                metrics_hashrates_hs.push_back(bucket_sum / static_cast<double>(bucket_n));
         }
     }
 
@@ -848,25 +886,21 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
 
     if (!metrics_hashrates_hs.empty())
     {
-        // Smooth hashrate with EMA over oldest->newest samples.
-        vector<double> ordered_hashrates = metrics_hashrates_hs;
-        std::reverse(ordered_hashrates.begin(), ordered_hashrates.end());
-
         vector<double> smoothed;
-        smoothed.reserve(ordered_hashrates.size());
+        smoothed.reserve(metrics_hashrates_hs.size());
 
-        const double alpha = 0.35;
-        double ema = ordered_hashrates.front();
+        const double alpha = 0.22;
+        double ema = metrics_hashrates_hs.front();
         smoothed.push_back(ema);
 
-        for (size_t idx = 1; idx < ordered_hashrates.size(); ++idx)
+        for (size_t idx = 1; idx < metrics_hashrates_hs.size(); ++idx)
         {
-            ema = alpha * ordered_hashrates[idx] + (1.0 - alpha) * ema;
+            ema = alpha * metrics_hashrates_hs[idx] + (1.0 - alpha) * ema;
             smoothed.push_back(ema);
         }
 
-        size_t chart_points = std::min<size_t>(60, smoothed.size());
-        size_t chart_start = smoothed.size() - chart_points;
+        size_t chart_points = smoothed.size();
+        size_t chart_start = 0;
 
         double min_v = smoothed[chart_start];
         double max_v = smoothed[chart_start];
@@ -945,13 +979,27 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             << "' fill='#ff7a1a' fill-opacity='0.20' />";
         svg << "<polyline points='" << polyline_points.str()
             << "' fill='none' stroke='#ff7a1a' stroke-width='2' />";
+        svg << fmt::format("<text x='{:.1f}' y='{:.1f}' fill='#a9a9a9' font-size='10'>H0</text>",
+                           pad_l, svg_h - 4.0);
+        svg << fmt::format("<text x='{:.1f}' y='{:.1f}' fill='#a9a9a9' font-size='10' text-anchor='middle'>H{}</text>",
+                           pad_l + plot_w * 0.5, svg_h - 4.0, tip_height / 2);
+        svg << fmt::format("<text x='{:.1f}' y='{:.1f}' fill='#a9a9a9' font-size='10' text-anchor='end'>H{}</text>",
+                           pad_l + plot_w, svg_h - 4.0, tip_height);
+        svg << fmt::format("<text x='4' y='{:.1f}' fill='#a9a9a9' font-size='10'>{}</text>",
+                           pad_t + 8.0, format_hashrate(max_v));
+        svg << fmt::format("<text x='4' y='{:.1f}' fill='#a9a9a9' font-size='10'>{}</text>",
+                           pad_t + plot_h * 0.5 + 4.0, format_hashrate((max_v + min_v) * 0.5));
+        svg << fmt::format("<text x='4' y='{:.1f}' fill='#a9a9a9' font-size='10'>{}</text>",
+                           pad_t + plot_h, format_hashrate(min_v));
         svg << "</svg>";
 
         context["hashrate_chart"] = mstch::map {
                 {"svg"    , svg.str()},
                 {"latest" , format_hashrate(smoothed.back())},
                 {"average", format_hashrate(avg_v)},
-                {"points" , static_cast<uint64_t>(chart_points)}
+                {"points" , static_cast<uint64_t>(chart_points)},
+                {"from_height", static_cast<uint64_t>(0)},
+                {"to_height"  , tip_height}
         };
     }
 
