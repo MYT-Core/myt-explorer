@@ -868,6 +868,8 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             {"age_format"        , network_info_age.second},
     };
 
+    double avg_block_time_seconds = static_cast<double>(DIFFICULTY_TARGET_V2);
+
     if (!metrics_block_intervals_sec.empty())
     {
         size_t avg_n = std::min<size_t>(30, metrics_block_intervals_sec.size());
@@ -877,6 +879,7 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             avg_block_time += static_cast<double>(metrics_block_intervals_sec[idx]);
 
         avg_block_time /= static_cast<double>(avg_n);
+        avg_block_time_seconds = avg_block_time;
 
         context["avg_blocktime"] = mstch::map {
                 {"seconds", fmt::format("{:0.1f}", avg_block_time)},
@@ -976,9 +979,9 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
                                pad_l, gy, pad_l + plot_w, gy);
         }
         svg << "<polygon points='" << area_points.str()
-            << "' fill='#ff7a1a' fill-opacity='0.20' />";
+            << "' fill='#43bfff' fill-opacity='0.20' />";
         svg << "<polyline points='" << polyline_points.str()
-            << "' fill='none' stroke='#ff7a1a' stroke-width='2' />";
+            << "' fill='none' stroke='#5de3ff' stroke-width='2.2' />";
         svg << fmt::format("<text x='{:.1f}' y='{:.1f}' fill='#a9a9a9' font-size='10'>H0</text>",
                            pad_l, svg_h - 4.0);
         svg << fmt::format("<text x='{:.1f}' y='{:.1f}' fill='#a9a9a9' font-size='10' text-anchor='middle'>H{}</text>",
@@ -1038,6 +1041,35 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
                 {"circulating_supply", circulating_supply},
                 {"fee_amount"        , emission_fee},
                 {"total_emitted"     , emission_total}
+        };
+
+        const long double max_supply_coins
+                = static_cast<long double>(MONEY_SUPPLY) / static_cast<long double>(COIN);
+        const long double mined_coins
+                = static_cast<long double>(current_values.coinbase) / static_cast<long double>(COIN);
+        const long double pct_mined = (max_supply_coins > 0.0L)
+                                      ? (mined_coins * 100.0L / max_supply_coins)
+                                      : 0.0L;
+
+        uint64_t halving_interval = MYT_HALVING_INTERVAL_BLOCKS;
+        uint64_t current_height = (height > 0) ? static_cast<uint64_t>(height - 1) : 0;
+        uint64_t mod = halving_interval > 0 ? (current_height % halving_interval) : 0;
+        uint64_t blocks_until_halving = (halving_interval > 0) ? (halving_interval - mod) : 0;
+        if (blocks_until_halving == 0 && halving_interval > 0)
+            blocks_until_halving = halving_interval;
+
+        uint64_t next_halving_height = current_height + blocks_until_halving;
+        uint64_t eta_seconds = static_cast<uint64_t>(blocks_until_halving * avg_block_time_seconds);
+        uint64_t eta_days = eta_seconds / 86400;
+        uint64_t eta_hours = (eta_seconds % 86400) / 3600;
+        uint64_t eta_minutes = (eta_seconds % 3600) / 60;
+
+        context["supply_stats"] = mstch::map {
+                {"max_supply"       , fmt::format("{:0.0Lf}", max_supply_coins)},
+                {"pct_mined"        , fmt::format("{:0.4Lf}", pct_mined)},
+                {"blocks_to_halving", blocks_until_halving},
+                {"next_halving_h"   , next_halving_height},
+                {"halving_eta"      , fmt::format("{}d {}h {}m", eta_days, eta_hours, eta_minutes)}
         };
     }
     else
