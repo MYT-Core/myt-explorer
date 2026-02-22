@@ -9,6 +9,7 @@
 
 #include <fstream>
 #include <regex>
+#include <set>
 
 using boost::filesystem::path;
 using xmreg::remove_bad_chars;
@@ -654,6 +655,33 @@ main(int ac, const char* av[])
     CROW_ROUTE(app, "/txpool")
     ([&]() {
         return myxmr::htmlresponse(xmrblocks.mempool(true));
+    });
+
+    CROW_ROUTE(app, "/assets/<string>")
+    ([&](const string& asset_name) {
+        static const std::set<std::string> allowed {
+                "MYT-Logo.png"
+        };
+
+        if (allowed.count(asset_name) == 0)
+            return crow::response(404);
+
+        const path asset_path = path("templates") / "assets" / asset_name;
+        std::ifstream in(asset_path.string(), std::ios::binary);
+        if (!in.good())
+            return crow::response(404);
+
+        std::string data((std::istreambuf_iterator<char>(in)),
+                         std::istreambuf_iterator<char>());
+
+        crow::response res;
+        res.code = 200;
+        res.body = std::move(data);
+        if (asset_name.size() >= 4 && asset_name.substr(asset_name.size() - 4) == ".png")
+            res.add_header("Content-Type", "image/png");
+        else
+            res.add_header("Content-Type", "application/octet-stream");
+        return res;
     });
 
 //    CROW_ROUTE(app, "/altblocks")

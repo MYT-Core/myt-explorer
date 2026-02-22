@@ -23,6 +23,13 @@
                 <td>{{txsize}}</td>
             </tr>
             {{/mempooltxs}}
+            {{^mempooltxs}}
+            <tr>
+                <td colspan="5" style="padding: 14px 0; color: #8ba2bd;">
+                    No pending transactions in mempool.
+                </td>
+            </tr>
+            {{/mempooltxs}}
         </table>
 
     {{^mempool_fits_on_front_page}}

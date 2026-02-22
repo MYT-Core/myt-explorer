@@ -42,8 +42,7 @@
 
     {{#network_info}}
         <h3 style="font-size: 12px; margin-top: 5px; margin-bottom: 3">
-            Network difficulty: {{difficulty}}
-            | Hard fork: v{{current_hf_version}}
+            Hard fork: v{{current_hf_version}}
             | Fee per byte: {{fee_per_kb}}
             | Median block size limit: {{block_size_limit}} kB
             {{^is_current_info}}
@@ -79,7 +78,7 @@
             <div class="stat-sub">Circulating supply</div>
             {{#supply_stats}}
             <div class="stat-sub">% mined: {{pct_mined}}% of {{max_supply}} MYT</div>
-            <div class="stat-sub">Next halving: H{{next_halving_h}} ({{blocks_to_halving}} blocks, {{halving_eta}})</div>
+            <div class="stat-sub">Next halving at height {{next_halving_h}} ({{blocks_to_halving}} blocks, {{halving_eta}})</div>
             {{/supply_stats}}
         </div>
         {{/emission}}
