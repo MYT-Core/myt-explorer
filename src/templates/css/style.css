@@ -37,6 +37,20 @@ h1 {
     padding: 10px;*/
 }
 
+.logo-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.brand-logo {
+    width: 112px;
+    height: 112px;
+    object-fit: contain;
+    border-radius: 0;
+    filter: drop-shadow(0 0 20px rgba(103, 232, 255, 0.28));
+}
+
 .stats-cards {
     margin: 12px auto 10px auto;
     width: 96%;
