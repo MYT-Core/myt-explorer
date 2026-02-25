@@ -15,8 +15,8 @@ body {
     padding: 0;
     color: var(--text);
     background:
-        radial-gradient(900px 450px at 15% 35%, rgba(31, 201, 255, 0.15), transparent 62%),
-        radial-gradient(1200px 600px at 85% 40%, rgba(127, 123, 255, 0.18), transparent 64%),
+        radial-gradient(900px 450px at 15% 55%, rgba(31, 201, 255, 0.15), transparent 62%),
+        radial-gradient(1200px 600px at 85% 62%, rgba(127, 123, 255, 0.18), transparent 64%),
         linear-gradient(180deg, var(--bg-0), var(--bg-1));
 }
 
@@ -59,7 +59,7 @@ h1 {
     height: 112px;
     object-fit: contain;
     border-radius: 0;
-    filter: drop-shadow(0 0 20px rgba(103, 232, 255, 0.28));
+    filter: none;
 }
 
 .stats-cards {
