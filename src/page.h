@@ -859,6 +859,8 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             {"alt_blocks_no"     , current_network_info.alt_blocks_count},
             {"have_alt_block"    , (current_network_info.alt_blocks_count > 0)},
             {"tx_pool_size"      , current_network_info.tx_pool_size},
+            {"connected_peers"   , current_network_info.outgoing_connections_count + current_network_info.incoming_connections_count},
+            {"visible_nodes"     , current_network_info.white_peerlist_size},
             {"block_size_limit"  , string {current_network_info.block_size_limit_str}},
             {"block_size_median" , string {current_network_info.block_size_median_str}},
             {"is_current_info"   , current_network_info.current},

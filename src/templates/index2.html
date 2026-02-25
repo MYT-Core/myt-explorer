@@ -70,9 +70,15 @@
             <div class="stat-value">{{difficulty}}</div>
             <div class="stat-sub">Current difficulty</div>
         </div>
+        <div class="stat-card">
+            <div class="stat-title">Running nodes</div>
+            <div class="stat-value">{{visible_nodes}}</div>
+            <div class="stat-sub">Visible peer-list nodes (approx.)</div>
+            <div class="stat-sub">Connected peers: {{connected_peers}}</div>
+        </div>
         {{/network_info}}
         {{#emission}}
-        <div class="stat-card">
+        <div class="stat-card supply-card">
             <div class="stat-title">Coin supply</div>
             <div class="stat-value">{{circulating_supply}} MYT</div>
             <div class="stat-sub">Circulating supply</div>
