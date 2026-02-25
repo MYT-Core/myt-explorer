@@ -70,10 +70,17 @@
             <div class="stat-value">{{difficulty}}</div>
             <div class="stat-sub">Current difficulty</div>
         </div>
+        {{#avg_blocktime}}
+        <div class="stat-card">
+            <div class="stat-title">Avg blocktime</div>
+            <div class="stat-value">{{seconds}} s</div>
+            <div class="stat-sub">Last {{blocks}} blocks</div>
+        </div>
+        {{/avg_blocktime}}
         <div class="stat-card">
             <div class="stat-title">Running nodes</div>
             <div class="stat-value">{{visible_nodes}}</div>
-            <div class="stat-sub">Visible peer-list nodes (approx.)</div>
+            <div class="stat-sub">Known/connected nodes (estimate)</div>
             <div class="stat-sub">Connected peers: {{connected_peers}}</div>
         </div>
         {{/network_info}}
@@ -89,12 +96,6 @@
         </div>
         {{/emission}}
     </div>
-
-    {{#avg_blocktime}}
-        <h3 style="font-size: 12px; margin-top: 2px">
-            Average block time (last {{blocks}} blocks): {{seconds}} s
-        </h3>
-    {{/avg_blocktime}}
 
     {{#hashrate_chart}}
         <h3 style="font-size: 12px; margin-top: 2px">

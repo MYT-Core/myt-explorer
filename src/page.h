@@ -852,6 +852,12 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
         current_network_info.current = true;
     }
 
+    uint64_t connected_peers = current_network_info.outgoing_connections_count
+                               + current_network_info.incoming_connections_count;
+    uint64_t known_peers = current_network_info.white_peerlist_size
+                           + current_network_info.grey_peerlist_size;
+    uint64_t running_nodes_est = std::max<uint64_t>(connected_peers, known_peers);
+
     context["network_info"] = mstch::map {
             {"difficulty"        , current_network_info.difficulty},
             {"hash_rate"         , hash_rate},
@@ -859,8 +865,8 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             {"alt_blocks_no"     , current_network_info.alt_blocks_count},
             {"have_alt_block"    , (current_network_info.alt_blocks_count > 0)},
             {"tx_pool_size"      , current_network_info.tx_pool_size},
-            {"connected_peers"   , current_network_info.outgoing_connections_count + current_network_info.incoming_connections_count},
-            {"visible_nodes"     , current_network_info.white_peerlist_size},
+            {"connected_peers"   , connected_peers},
+            {"visible_nodes"     , running_nodes_est},
             {"block_size_limit"  , string {current_network_info.block_size_limit_str}},
             {"block_size_median" , string {current_network_info.block_size_median_str}},
             {"is_current_info"   , current_network_info.current},
