@@ -1044,10 +1044,10 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
                 = CurrentBlockchainStatus::get_emission();
 
         string emission_blk_no   = std::to_string(current_values.blk_no - 1);
-        string circulating_supply = xmr_amount_to_str(current_values.coinbase, "{:0.3f}");
-        string emission_fee       = xmr_amount_to_str(current_values.fee, "{:0.3f}");
+        string circulating_supply = xmr_amount_to_str(current_values.coinbase, "{:0.2f}");
+        string emission_fee       = xmr_amount_to_str(current_values.fee, "{:0.2f}");
         string emission_total     = xmr_amount_to_str(
-                current_values.coinbase + current_values.fee, "{:0.3f}");
+                current_values.coinbase + current_values.fee, "{:0.2f}");
 
         context["emission"] = mstch::map {
                 {"blk_no"            , emission_blk_no},
@@ -6039,8 +6039,8 @@ json_emission()
                 = CurrentBlockchainStatus::get_emission();
 
         string emission_blk_no   = std::to_string(current_values.blk_no - 1);
-        string emission_coinbase = xmr_amount_to_str(current_values.coinbase, "{:0.3f}");
-        string emission_fee      = xmr_amount_to_str(current_values.fee, "{:0.4f}", false);
+        string emission_coinbase = xmr_amount_to_str(current_values.coinbase, "{:0.2f}");
+        string emission_fee      = xmr_amount_to_str(current_values.fee, "{:0.2f}", false);
 
         j_data = json {
                 {"blk_no"  , current_values.blk_no - 1},
