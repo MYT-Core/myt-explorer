@@ -106,9 +106,6 @@ public:
     get_network_info(COMMAND_RPC_GET_INFO::response& info);
 
     bool
-    get_connections(std::list<connection_info>& connections);
-
-    bool
     get_base_fee_estimate(uint64_t grace_blocks, uint64_t& fee_estimate);
 
     bool

@@ -82,14 +82,6 @@
             <div class="stat-value">{{visible_nodes}}</div>
             <div class="stat-sub">Known/connected nodes (estimate)</div>
             <div class="stat-sub">Connected peers: {{connected_peers}}</div>
-            <div class="stat-sub">Incoming sessions: {{incoming_sessions}}</div>
-            <div class="stat-sub">Incoming unique IPs: {{incoming_unique_ips}}</div>
-            {{#incoming_peers}}
-            <div class="stat-sub">IN: {{ip}} ({{sessions}})</div>
-            {{/incoming_peers}}
-            {{^incoming_peers}}
-            <div class="stat-sub">IN: none (current snapshot)</div>
-            {{/incoming_peers}}
         </div>
         {{/network_info}}
         {{#emission}}

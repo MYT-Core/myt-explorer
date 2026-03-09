@@ -496,57 +496,6 @@ string js_html_files_all_in_one;
 // read operation in OS
 map<string, string> template_file;
 
-static std::string
-preferred_peer_ip(const connection_info& conn)
-{
-    if (!conn.ip.empty())
-        return conn.ip;
-
-    if (!conn.host.empty())
-        return conn.host;
-
-    return conn.address;
-}
-
-static bool
-is_loopback_peer_ip(const std::string& ip)
-{
-    return ip == "127.0.0.1"
-           || ip == "::1"
-           || ip == "localhost";
-}
-
-static void
-collect_incoming_peers(const std::list<connection_info>& connections,
-                       std::vector<std::pair<std::string, uint64_t>>& incoming_by_ip,
-                       uint64_t& incoming_sessions_total)
-{
-    incoming_sessions_total = 0;
-    std::map<std::string, uint64_t> by_ip;
-
-    for (const auto& conn: connections)
-    {
-        if (!conn.incoming)
-            continue;
-
-        const std::string ip = preferred_peer_ip(conn);
-        if (ip.empty() || is_loopback_peer_ip(ip))
-            continue;
-
-        ++incoming_sessions_total;
-        ++by_ip[ip];
-    }
-
-    incoming_by_ip.assign(by_ip.begin(), by_ip.end());
-    std::sort(incoming_by_ip.begin(), incoming_by_ip.end(),
-              [](const auto& a, const auto& b)
-              {
-                  if (a.second != b.second)
-                      return a.second > b.second;
-                  return a.first < b.first;
-              });
-}
-
 public:
 
 page(MicroCore* _mcore,
@@ -909,24 +858,6 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
     // explorer's own daemon as one node.
     uint64_t running_nodes_est = connected_peers + 1;
 
-    std::list<connection_info> connections;
-    std::vector<std::pair<std::string, uint64_t>> incoming_by_ip;
-    uint64_t incoming_sessions_total {0};
-    if (rpc.get_connections(connections))
-    {
-        collect_incoming_peers(connections, incoming_by_ip, incoming_sessions_total);
-    }
-
-    mstch::array incoming_peers;
-    const size_t max_incoming_rows {8};
-    for (size_t idx = 0; idx < incoming_by_ip.size() && idx < max_incoming_rows; ++idx)
-    {
-        incoming_peers.push_back(mstch::map {
-                {"ip", incoming_by_ip[idx].first},
-                {"sessions", incoming_by_ip[idx].second}
-        });
-    }
-
     context["network_info"] = mstch::map {
             {"difficulty"        , current_network_info.difficulty},
             {"hash_rate"         , hash_rate},
@@ -936,9 +867,6 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
             {"tx_pool_size"      , current_network_info.tx_pool_size},
             {"connected_peers"   , connected_peers},
             {"visible_nodes"     , running_nodes_est},
-            {"incoming_sessions" , incoming_sessions_total},
-            {"incoming_unique_ips", static_cast<uint64_t>(incoming_by_ip.size())},
-            {"incoming_peers"    , incoming_peers},
             {"block_size_limit"  , string {current_network_info.block_size_limit_str}},
             {"block_size_median" , string {current_network_info.block_size_median_str}},
             {"is_current_info"   , current_network_info.current},
@@ -6073,27 +6001,6 @@ json_networkinfo()
 
     j_info["tx_pool_size"]        = MempoolStatus::mempool_no.load();
     j_info["tx_pool_size_kbytes"] = MempoolStatus::mempool_size.load();
-
-    std::list<connection_info> connections;
-    std::vector<std::pair<std::string, uint64_t>> incoming_by_ip;
-    uint64_t incoming_sessions_total {0};
-    if (rpc.get_connections(connections))
-    {
-        collect_incoming_peers(connections, incoming_by_ip, incoming_sessions_total);
-    }
-
-    json incoming_peers = json::array();
-    for (const auto& peer: incoming_by_ip)
-    {
-        incoming_peers.push_back({
-            {"ip", peer.first},
-            {"sessions", peer.second}
-        });
-    }
-
-    j_info["incoming_sessions"] = incoming_sessions_total;
-    j_info["incoming_unique_ips"] = incoming_by_ip.size();
-    j_info["incoming_peers"] = incoming_peers;
 
     j_data = j_info;
 
