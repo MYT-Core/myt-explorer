@@ -236,6 +236,65 @@ rpccalls::get_network_info(COMMAND_RPC_GET_INFO::response& response)
     return true;
 }
 
+bool
+rpccalls::get_connections(std::list<connection_info>& connections)
+{
+    epee::json_rpc::request<cryptonote::COMMAND_RPC_GET_CONNECTIONS::request>
+            req_t = AUTO_VAL_INIT(req_t);
+    epee::json_rpc::response<cryptonote::COMMAND_RPC_GET_CONNECTIONS::response, std::string>
+            resp_t = AUTO_VAL_INIT(resp_t);
+
+    bool r {false};
+
+    req_t.jsonrpc = "2.0";
+    req_t.id = epee::serialization::storage_entry(0);
+    req_t.method = "get_connections";
+
+    {
+        std::lock_guard<std::mutex> guard(m_daemon_rpc_mutex);
+
+        if (!connect_to_monero_daemon())
+        {
+            cerr << "get_connections: not connected to daemon" << endl;
+            return false;
+        }
+
+        r = epee::net_utils::invoke_http_json("/json_rpc",
+                                              req_t, resp_t,
+                                              m_http_client);
+    }
+
+    string err;
+
+    if (r)
+    {
+        if (resp_t.result.status == CORE_RPC_STATUS_BUSY)
+        {
+            err = "Daemon is busy. Please try again later.";
+        }
+        else if (resp_t.result.status != CORE_RPC_STATUS_OK)
+        {
+            err = resp_t.result.status;
+        }
+
+        if (!err.empty())
+        {
+            cerr << "Error connecting to MYT daemon due to "
+                 << err << endl;
+            return false;
+        }
+    }
+    else
+    {
+        cerr << "Error connecting to MYT daemon at "
+             << daemon_url << endl;
+        return false;
+    }
+
+    connections = resp_t.result.connections;
+    return true;
+}
+
 
 bool
 rpccalls::get_hardfork_info(COMMAND_RPC_HARD_FORK_INFO::response& response)
