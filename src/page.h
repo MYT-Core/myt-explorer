@@ -854,10 +854,9 @@ index2(uint64_t page_no = 0, bool refresh_page = false)
 
     uint64_t connected_peers = current_network_info.outgoing_connections_count
                                + current_network_info.incoming_connections_count;
-    uint64_t known_peers = current_network_info.white_peerlist_size
-                           + current_network_info.grey_peerlist_size;
-    // Count this explorer's own daemon as one running node.
-    uint64_t running_nodes_est = std::max<uint64_t>(1, std::max<uint64_t>(connected_peers, known_peers));
+    // Estimate running nodes from currently connected peers and count this
+    // explorer's own daemon as one node.
+    uint64_t running_nodes_est = connected_peers + 1;
 
     context["network_info"] = mstch::map {
             {"difficulty"        , current_network_info.difficulty},
