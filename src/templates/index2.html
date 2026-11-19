@@ -1,164 +1,145 @@
 
-<div class="center">
-     <h3 style="font-size: 12px; margin-top: 20px">
-
-        Server time: {{server_timestamp}}  | <a href="/txpool">Transaction pool</a>
-         {{#enable_pusher}}
-            | <a href="/rawtx">Transaction pusher </a>
-         {{/enable_pusher}}
-         {{#enable_autorefresh_option}}
-             |
-            {{#refresh}}
-                <a href="/">Autorefresh is ON (10 s)</a>
-            {{/refresh}}
-            {{^refresh}}
-               <a href="/autorefresh">Autorefresh is OFF</a>
-            {{/refresh}}
-         {{/enable_autorefresh_option}}
-         {{#testnet_url}}
-            | <a href="{{testnet_url}}">Go to testnet explorer</a>
-         {{/testnet_url}}
-         {{#stagenet_url}}
-            | <a href="{{stagenet_url}}">Go to stagenet explorer</a>
-         {{/stagenet_url}}
-         {{#mainnet_url}}
-            | <a href="{{mainnet_url}}">Go to mainnet explorer</a>
-         {{/mainnet_url}}
-         {{#testnet}}
-            | This is <span style="color:#ff6b62">testnet</span> blockchain
-         {{/testnet}}
-         {{#stagenet}}
-            | This is <span style="color:#ff6b62">stagenet</span> blockchain
-         {{/stagenet}}
-
-        </h3>
-
-
-    {{#network_info}}
-        <h3 style="font-size: 12px; margin-top: 5px; margin-bottom: 3">
-            Hard fork: v{{current_hf_version}}
-            | Fee per byte: {{fee_per_kb}}
-            | Median block size limit: {{block_size_limit}} kB
-            {{^is_current_info}}
-            | Data from {{age}} {{age_format}} ago
-            {{/is_current_info}}
-        </h3>
-    {{/network_info}}
-
-    <div class="stats-cards">
-        {{#summary_block}}
-        <div class="stat-card">
-            <div class="stat-title">Block</div>
-            <div class="stat-value">#{{height}}</div>
-            <div class="stat-sub">{{age}}</div>
-        </div>
-        {{/summary_block}}
-        {{#network_info}}
-        <div class="stat-card">
-            <div class="stat-title">Hashrate</div>
-            <div class="stat-value">{{hash_rate}}</div>
-            <div class="stat-sub">Network hashrate</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-title">Difficulty</div>
-            <div class="stat-value">{{difficulty}}</div>
-            <div class="stat-sub">Current difficulty</div>
-        </div>
-        {{#avg_blocktime}}
-        <div class="stat-card">
-            <div class="stat-title">Avg blocktime</div>
-            <div class="stat-value">{{seconds}} s</div>
-            <div class="stat-sub">Last {{blocks}} blocks</div>
-        </div>
-        {{/avg_blocktime}}
-        <div class="stat-card">
-            <div class="stat-title">Running nodes</div>
-            <div class="stat-value">{{visible_nodes}}</div>
-            <div class="stat-sub">Known/connected nodes (estimate)</div>
-            <div class="stat-sub">Connected peers: {{connected_peers}}</div>
-        </div>
-        {{/network_info}}
-        {{#emission}}
-        <div class="stat-card supply-card">
-            <div class="stat-title">Coin supply</div>
-            <div class="stat-value">{{circulating_supply}} MYT</div>
-            <div class="stat-sub">Circulating supply</div>
-            {{#supply_stats}}
-            <div class="stat-sub">% mined: {{pct_mined}}% of {{max_supply}} MYT</div>
-            <div class="stat-sub">Next halving at height {{next_halving_h}} ({{blocks_to_halving}} blocks, {{halving_eta}})</div>
-            {{/supply_stats}}
-        </div>
-        {{/emission}}
-    </div>
-
-    {{#hashrate_chart}}
-        <h3 style="font-size: 12px; margin-top: 2px">
-            Smoothed estimated hashrate (heights {{from_height}} to {{to_height}})
-            | Latest: {{latest}} | Avg: {{average}}
-        </h3>
-        <div style="display:flex; justify-content:center; margin-top: 4px; margin-bottom: 4px;">
-            {{{svg}}}
-        </div>
-    {{/hashrate_chart}}
-
-    {{#emission}}
-        <h3 style="font-size: 12px; margin-top: 2px">
-            Total fees: {{fee_amount}} MYT
-            | Total emitted (supply + fees): {{total_emitted}} MYT
-            | Height: {{blk_no}}
-        </h3>
-    {{/emission}}
-
-
+<div class="chips">
+    {{#testnet}}
+        <span class="chip chip-warn">Testnet blockchain</span>
+    {{/testnet}}
+    {{#stagenet}}
+        <span class="chip chip-warn">Stagenet blockchain</span>
+    {{/stagenet}}
+    <span class="chip"><span class="live-dot"></span> Server time <strong>{{server_timestamp}}</strong></span>
+    <a class="chip" href="/txpool">Transaction pool</a>
+    {{#enable_pusher}}
+        <a class="chip" href="/rawtx">Transaction pusher</a>
+    {{/enable_pusher}}
+    {{#enable_autorefresh_option}}
+        {{#refresh}}
+            <a class="chip" href="/">Auto-refresh on · 10 s</a>
+        {{/refresh}}
+        {{^refresh}}
+            <a class="chip" href="/autorefresh">Auto-refresh off</a>
+        {{/refresh}}
+    {{/enable_autorefresh_option}}
+    {{#testnet_url}}
+        <a class="chip" href="{{testnet_url}}">Testnet explorer</a>
+    {{/testnet_url}}
+    {{#stagenet_url}}
+        <a class="chip" href="{{stagenet_url}}">Stagenet explorer</a>
+    {{/stagenet_url}}
+    {{#mainnet_url}}
+        <a class="chip" href="{{mainnet_url}}">Mainnet explorer</a>
+    {{/mainnet_url}}
 </div>
 
-    {{{mempool_info}}}
+{{#network_info}}
+<div class="chips">
+    <span class="chip">Hard fork <strong>v{{current_hf_version}}</strong></span>
+    <span class="chip">Fee per byte <strong>{{fee_per_kb}}</strong></span>
+    <span class="chip">Median block size limit <strong>{{block_size_limit}} kB</strong></span>
+    {{^is_current_info}}
+        <span class="chip chip-warn">Data from {{age}} {{age_format}} ago</span>
+    {{/is_current_info}}
+</div>
+{{/network_info}}
 
-    {{#is_page_zero}}
-      <h2 style="margin-bottom: 0px">Transactions in the last {{no_of_last_blocks}} blocks</h2>
-    {{/is_page_zero}}
-    {{^is_page_zero}}
-      <h2 style="margin-bottom: 0px">Transactions in older blocks<!--(height: {{height}})--></h2>
-    {{/is_page_zero}}
-
-    <h4 style="font-size: 14px; margin-top: 0px">(Median size of 100 blocks: {{blk_size_median}} kB)</h4>
-
-    <div class="center">
-
-            <table class="center">
-                <tr>
-                    <td>height</td>
-                    <td>age {{age_format}}<!--(Δm)--></td>
-                    <td>size [kB]<!--(Δm)--></td>
-                    <td>no txs</td>
-                    <td>transaction hash</td>
-                    <td>fee [&#181;&#x271]</td>
-                    <td>outputs</td>
-                    <td>in/out</td>
-                    <td>tx size [kB]</td>
-                </tr>
-                {{#txs}}
-                <tr>
-                    <td><a href="/block/{{height}}">{{height}}</a></td>
-                    <td>{{age}}<!--{{time_delta}}--></td>
-                    <td>{{blk_size}}</td>
-                    <td>{{no_txs}}</td>
-                    <td><a href="/tx/{{hash}}">{{hash}}</a></td>
-                    <td>{{fee_micro}}</td>
-                    <td>{{sum_outputs_short}}</td>
-                    <td>{{no_inputs}}/{{no_outputs}}</td>
-                    <td>{{tx_size_short}}</td>
-                </tr>
-                {{/txs}}
-            </table>
-
-            <div id="pages" class="center" style="text-align: center;">
-             {{^is_page_zero}}
-               <a href="/page/{{prev_page}}">previous page</a> |
-               <a href="/">first page</a> |
-             {{/is_page_zero}}
-                current page: {{page_no}}/<a href="/page/{{total_page_no}}">{{total_page_no}}</a>
-                | <a href="/page/{{next_page}}">next page</a>
-            </div>
-
+<div class="stats-cards">
+    {{#summary_block}}
+    <div class="stat-card">
+        <div class="stat-title">Latest block</div>
+        <div class="stat-value">#{{height}}</div>
+        <div class="stat-sub">{{age}}</div>
     </div>
+    {{/summary_block}}
+    {{#network_info}}
+    <div class="stat-card">
+        <div class="stat-title">Network hashrate</div>
+        <div class="stat-value">{{hash_rate}}</div>
+        <div class="stat-sub">Estimated from difficulty</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-title">Difficulty</div>
+        <div class="stat-value">{{difficulty}}</div>
+        <div class="stat-sub">Current target</div>
+    </div>
+    {{#avg_blocktime}}
+    <div class="stat-card">
+        <div class="stat-title">Average block time</div>
+        <div class="stat-value">{{seconds}} s</div>
+        <div class="stat-sub">Last {{blocks}} blocks · target 60 s</div>
+    </div>
+    {{/avg_blocktime}}
+    <div class="stat-card">
+        <div class="stat-title">Nodes</div>
+        <div class="stat-value">{{visible_nodes}}</div>
+        <div class="stat-sub">Known nodes (estimate) · {{connected_peers}} peers connected</div>
+    </div>
+    {{/network_info}}
+    {{#emission}}
+    <div class="stat-card supply-card">
+        <div class="stat-title">Circulating supply</div>
+        <div class="stat-value">{{circulating_supply}} MYT</div>
+        {{#supply_stats}}
+        <div class="stat-sub">{{pct_mined}}% of {{max_supply}} MYT mined · next halving at height {{next_halving_h}} ({{blocks_to_halving}} blocks, {{halving_eta}})</div>
+        {{/supply_stats}}
+        <div class="stat-sub">Total fees {{fee_amount}} MYT · total emitted {{total_emitted}} MYT · height {{blk_no}}</div>
+    </div>
+    {{/emission}}
+</div>
+
+{{#hashrate_chart}}
+<div class="card chart">
+    <div class="card-head">
+        <strong>Hashrate</strong>
+        <span>Smoothed estimate, heights {{from_height}}–{{to_height}} · latest {{latest}} · average {{average}}</span>
+    </div>
+    {{{svg}}}
+</div>
+{{/hashrate_chart}}
+
+{{{mempool_info}}}
+
+{{#is_page_zero}}
+    <h2>Latest transactions</h2>
+    <p class="section-note">Transactions in the last {{no_of_last_blocks}} blocks · median size of 100 blocks: {{blk_size_median}} kB</p>
+{{/is_page_zero}}
+{{^is_page_zero}}
+    <h2>Older blocks</h2>
+    <p class="section-note">Median size of 100 blocks: {{blk_size_median}} kB</p>
+{{/is_page_zero}}
+
+<div class="table-scroll">
+    <table>
+        <tr>
+            <td>Height</td>
+            <td>Age {{age_format}}</td>
+            <td>Size [kB]</td>
+            <td>Txs</td>
+            <td>Transaction hash</td>
+            <td>Fee [&#181;&#x271]</td>
+            <td>Outputs</td>
+            <td>In/out</td>
+            <td>Tx size [kB]</td>
+        </tr>
+        {{#txs}}
+        <tr>
+            <td><a href="/block/{{height}}">{{height}}</a></td>
+            <td>{{age}}</td>
+            <td>{{blk_size}}</td>
+            <td>{{no_txs}}</td>
+            <td><a href="/tx/{{hash}}">{{hash}}</a></td>
+            <td>{{fee_micro}}</td>
+            <td>{{sum_outputs_short}}</td>
+            <td>{{no_inputs}}/{{no_outputs}}</td>
+            <td>{{tx_size_short}}</td>
+        </tr>
+        {{/txs}}
+    </table>
+</div>
+
+<div id="pages">
+    {{^is_page_zero}}
+        <a href="/page/{{prev_page}}">‹ Previous</a>
+        <a href="/">First page</a>
+    {{/is_page_zero}}
+    <span class="current">Page {{page_no}} of <a href="/page/{{total_page_no}}">{{total_page_no}}</a></span>
+    <a href="/page/{{next_page}}">Next ›</a>
+</div>

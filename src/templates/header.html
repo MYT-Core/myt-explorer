@@ -2,37 +2,38 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#000000">
     <link rel="shortcut icon" href="about:blank">
     <META HTTP-EQUIV="CACHE-CONTROL" CONTENT="NO-CACHE">
     {{#refresh}}
         <meta http-equiv="refresh" content="10">
     {{/refresh}}
     <title>MYT Blockchain Explorer</title>
-    <!--<link rel="stylesheet" type="text/css" href="/css/style.css">-->
     <style type="text/css">
         {{#css_styles}}{{/css_styles}}
     </style>
-
 </head>
 <body>
-<div>
-    <div class="hero-black">
-    <div class="center hero-content">
-        <div style="display:flex; justify-content:center; margin-top: 6px;">
-            <a href="/" class="logo-link"><img src="/assets/MYT-Logo.png" alt="MYT Logo" class="brand-logo"></a>
-        </div>
-        <h1 class="center"><a href="/">MYT Blockchain Explorer</a></h1>
-        <h4 style="font-size: 15px; margin: 0px">(no javascript - no cookies - no web analytics trackers - open sourced)</h4>
-    </div>
-    </div>
-
-
-    <div class="center">
-        <form action="/search" method="get" style="width:100%; margin-top:15px" class="style-1">
-            <input type="text" name="value" size="120"
-                   placeholder="block height, block hash, transaction hash">
+<header class="topbar">
+    <div class="topbar-inner">
+        <a href="/" class="brand"><img src="/assets/MYT-Logo.png" alt="">MYT <small>Explorer</small></a>
+        <nav class="topnav" aria-label="Explorer">
+            <a href="/">Blocks</a>
+            <a href="/txpool">Transaction pool</a>
+        </nav>
+        <form action="/search" method="get" class="search" role="search">
+            <input type="text" name="value" aria-label="Search the blockchain"
+                   placeholder="Block height, block hash or transaction hash">
             <input type="submit" value="Search">
         </form>
     </div>
+</header>
 
-</div>
+<section class="page-hero">
+    <p class="eyebrow">MYT Blockchain Explorer</p>
+    <h1><a href="/">Every block. In plain sight.</a></h1>
+    <p class="tagline">No JavaScript. No cookies. No trackers. Open source.</p>
+</section>
+
+<main class="container">
