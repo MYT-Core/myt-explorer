@@ -21,6 +21,7 @@ RUN apt-get update \
     ca-certificates \
     zip \
     libboost-all-dev \
+    libasio-dev \
     libunbound-dev \
     libunwind8-dev \
     libssl-dev \
@@ -94,4 +95,4 @@ EXPOSE 8081
 ENTRYPOINT ["/bin/sh", "-c"]
 
 # Set sane defaults that are overridden if the user passes any commands
-CMD ["./xmrblocks --enable-json-api --enable-autorefresh-option  --enable-pusher"]
+CMD ["./xmrblocks --bindaddr 0.0.0.0 --enable-json-api --enable-autorefresh-option"]

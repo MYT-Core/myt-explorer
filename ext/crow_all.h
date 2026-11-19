@@ -5322,9 +5322,13 @@ namespace crow
             }
             return 0;
         }
+        static constexpr size_t max_body_size = 4 * 1024 * 1024;
+
         static int on_headers_complete(http_parser* self_)
         {
             HTTPParser* self = static_cast<HTTPParser*>(self_);
+            if (self->content_length != CROW_ULLONG_MAX && self->content_length > max_body_size)
+                return 3; // The parser treats other than 0, 1 or 2 as a callback error.
             if (!self->header_field.empty())
             {
                 self->req.headers.emplace(std::move(self->header_field), std::move(self->header_value));
@@ -5338,6 +5342,9 @@ namespace crow
         static int on_body(http_parser* self_, const char* at, size_t length)
         {
             HTTPParser* self = static_cast<HTTPParser*>(self_);
+            // Also bound chunked and incrementally received bodies.
+            if (length > max_body_size - self->req.body.size())
+                return 1;
             self->req.body.insert(self->req.body.end(), at, at + length);
             return 0;
         }
@@ -9623,7 +9630,7 @@ namespace crow
                 }
             }
 
-            CROW_LOG_INFO << "Request: " << utility::lexical_cast<std::string>(adaptor_.remote_endpoint()) << " " << this << " HTTP/" << (char)(req_.http_ver_major + '0') << "." << (char)(req_.http_ver_minor + '0') << ' ' << method_name(req_.method) << " " << req_.url;
+            CROW_LOG_INFO << "Request method: " << method_name(req_.method);
 
 
             need_to_call_after_handlers_ = false;
@@ -9662,7 +9669,8 @@ namespace crow
         /// Call the after handle middleware and send the write the response to the connection.
         void complete_request()
         {
-            CROW_LOG_INFO << "Response: " << this << ' ' << req_.raw_url << ' ' << res.code << ' ' << close_connection_;
+
+            CROW_LOG_INFO << "Response status: " << res.code;
             res.is_alive_helper_ = nullptr;
 
             if (need_to_call_after_handlers_)
@@ -13503,14 +13511,13 @@ namespace crow // NOTE: Already documented in "crow/app.h"
                 {
                     if (method.trie.find(req.url).rule_index)
                     {
-                        CROW_LOG_DEBUG << "Cannot match method " << req.url << " " << method_name(req.method);
+
                         res = response(405);
                         res.end();
                         return;
                     }
                 }
 
-                CROW_LOG_INFO << "Cannot match rules " << req.url;
                 res = response(404);
                 res.end();
                 return;
@@ -13521,7 +13528,7 @@ namespace crow // NOTE: Already documented in "crow/app.h"
 
             if (rule_index == RULE_SPECIAL_REDIRECT_SLASH)
             {
-                CROW_LOG_INFO << "Redirecting to a url with trailing slash: " << req.url;
+
                 res = response(301);
                 res.add_header("Location", req.url + "/");
                 res.end();
@@ -13652,7 +13659,7 @@ namespace crow // NOTE: Already documented in "crow/app.h"
                     *found = per_methods_[static_cast<int>(method_actual)].trie.find(req.url);
                     if (!found->rule_index) // If a route is still not found, return a 404 without executing the rest of the HEAD specific code.
                     {
-                        CROW_LOG_DEBUG << "Cannot match rules " << req.url;
+
                         res = response(404); //TODO(EDev): Should this redirect to catchall?
                         res.end();
                         return found;
@@ -13721,7 +13728,7 @@ namespace crow // NOTE: Already documented in "crow/app.h"
                     }
                     else
                     {
-                        CROW_LOG_DEBUG << "Cannot match rules " << req.url;
+
                         res = response(404); //TODO(EDev): Should this redirect to catchall?
                         res.end();
                         return found;
@@ -13738,16 +13745,14 @@ namespace crow // NOTE: Already documented in "crow/app.h"
                     {
                         if (per_method.trie.find(req.url).rule_index) //Route found, but in another method
                         {
-                            const std::string error_message(get_error(405, *found, req, res));
-                            CROW_LOG_DEBUG << "Cannot match method " << req.url << " " << method_name(method_actual) << ". " << error_message;
+                            get_error(405, *found, req, res);
                             res.end();
                             return found;
                         }
                     }
                     //Route does not exist anywhere
 
-                    const std::string error_message(get_error(404, *found, req, res));
-                    CROW_LOG_DEBUG << "Cannot match rules " << req.url << ". " << error_message;
+                    get_error(404, *found, req, res);
                     res.end();
                     return found;
                 }
@@ -13769,7 +13774,7 @@ namespace crow // NOTE: Already documented in "crow/app.h"
 
             if (rule_index == RULE_SPECIAL_REDIRECT_SLASH)
             {
-                CROW_LOG_INFO << "Redirecting to a url with trailing slash: " << req.url;
+
                 res = response(301);
                 res.add_header("Location", req.url + "/");
                 res.end();

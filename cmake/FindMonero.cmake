@@ -44,7 +44,7 @@ foreach (l ${LIBS})
 
 	find_library(Xmr_${L}_LIBRARY
 		NAMES ${l}
-		PATHS ${CMAKE_LIBRARY_PATH}
+		PATHS "${MONERO_BUILD_DIR}" ${CMAKE_LIBRARY_PATH}
 		PATH_SUFFIXES "/src/${l}" "/src/" "/external/db_drivers/lib${l}" "/lib" "/src/crypto" "/src/crypto/wallet" "/contrib/epee/src" "/external/easylogging++/" "/external/${l}" "external/miniupnp/miniupnpc"
 		NO_DEFAULT_PATH
 	)
@@ -53,7 +53,7 @@ foreach (l ${LIBS})
 
 	message(STATUS FindMonero " Xmr_${L}_LIBRARIES ${Xmr_${L}_LIBRARY}")
 
-	if(NOT "${Xmr_${L}_LIBRARIES}" STREQUAL "${Xmr_${L}_LIBRARY-NOTFOUND}")
+	if(Xmr_${L}_LIBRARY)
 	  add_library(${l} STATIC IMPORTED)
 	  set_property(TARGET ${l} PROPERTY IMPORTED_LOCATION ${Xmr_${L}_LIBRARIES})
 	endif()
@@ -88,4 +88,5 @@ include_directories(
 		${MONERO_SOURCE_DIR}/external/easylogging++
 		${MONERO_SOURCE_DIR}/contrib/epee/include
                 ${MONERO_SOURCE_DIR}/external/db_drivers/liblmdb
+                ${MONERO_BUILD_DIR}/generated_include/crypto/wallet
                 ${MONERO_SOURCE_DIR}/generated_include/crypto/wallet)

@@ -99,6 +99,11 @@ else()
   set(WALLET_CRYPTO ${Xmr_WALLET-CRYPTO_LIBRARIES})
 endif()
 
+# MYT's default build leaves per-block checkpoints disabled.
+if(TARGET blocks)
+    set(CHECKPOINT_LIBRARY blocks)
+endif()
+
 # include boost headers
 include_directories(${Boost_INCLUDE_DIRS})
 
@@ -148,7 +153,7 @@ set(LIBRARIES
         ${WALLET_CRYPTO} 
         multisig
         daemonizer
-        blocks
+        ${CHECKPOINT_LIBRARY}
         lmdb
         ringct
         ringct_basic
