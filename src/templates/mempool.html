@@ -1,45 +1,38 @@
-<h2 style="margin-bottom: 0px">
-   Transaction pool
-</h2>
-<h4 style="font-size: 12px; margin-top: 0px">(no of txs: {{mempool_size}}, size: {{mempool_size_kB}} kB, updated every {{ mempool_refresh_time }} seconds)</h4>
-<div class="center">
-    
-      <table class="center" style="width:80%">
-            <tr>
-                <td>age [h:m:s]</td>
-                <td>transaction hash</td>
-                <td>fee/per_kB [&#181;&#x271]</td>
-                <!--<td>outputs</td>-->
-                <td>in/out</td>
-                <td>tx size [kB]</td>
-            </tr>
-            {{#mempooltxs}}
-            <tr>
-                <td>{{age}}</td>
-                <td><a href="/tx/{{hash}}">{{hash}}</a></td>
-                <td>{{fee}}/{{payed_for_kB}}</td>
-                <!--<td>{{xmr_outputs}}</td>-->
-                <td>{{no_inputs}}/{{no_outputs}}</td>
-                <td>{{txsize}}</td>
-            </tr>
-            {{/mempooltxs}}
-            {{^mempooltxs}}
-            <tr>
-                <td colspan="5" style="padding: 14px 0; color: #8ba2bd;">
-                    No pending transactions in mempool.
-                </td>
-            </tr>
-            {{/mempooltxs}}
-        </table>
+<h2>Transaction pool</h2>
+<p class="section-note">{{mempool_size}} transactions · {{mempool_size_kB}} kB · updated every {{ mempool_refresh_time }} seconds</p>
 
-    {{^mempool_fits_on_front_page}}
-      {{#partial_mempool_shown}}
-      <div class="center" style="text-align: center; margin-bottom: 10px">
-          <a href="/txpool">Only {{no_of_mempool_tx_of_frontpage}} txs shown. Click here to see all of them</a>
-      </div>
-      {{/partial_mempool_shown}}
-
-    {{/mempool_fits_on_front_page}}
-
-
+<div class="table-scroll">
+    <table>
+        <tr>
+            <td>Age [h:m:s]</td>
+            <td>Transaction hash</td>
+            <td>Fee / per kB [&#181;&#x271]</td>
+            <td>In/out</td>
+            <td>Tx size [kB]</td>
+        </tr>
+        {{#mempooltxs}}
+        <tr>
+            <td>{{age}}</td>
+            <td><a href="/tx/{{hash}}">{{hash}}</a></td>
+            <td>{{fee}}/{{payed_for_kB}}</td>
+            <td>{{no_inputs}}/{{no_outputs}}</td>
+            <td>{{txsize}}</td>
+        </tr>
+        {{/mempooltxs}}
+        {{^mempooltxs}}
+        <tr>
+            <td colspan="5" style="padding: 22px 16px; color: var(--faint); text-align: center;">
+                No pending transactions. The pool is empty.
+            </td>
+        </tr>
+        {{/mempooltxs}}
+    </table>
 </div>
+
+{{^mempool_fits_on_front_page}}
+    {{#partial_mempool_shown}}
+    <p class="section-note" style="text-align:center; margin-top: 10px">
+        <a href="/txpool">Only {{no_of_mempool_tx_of_frontpage}} transactions shown. View the full pool ›</a>
+    </p>
+    {{/partial_mempool_shown}}
+{{/mempool_fits_on_front_page}}

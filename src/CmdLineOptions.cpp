@@ -34,9 +34,9 @@ namespace xmreg
                 ("enable-mixin-details", value<bool>()->default_value(false)->implicit_value(true),
                  "enable mixin details for key images, e.g., timescale, mixin of mixins, in tx context")
                 ("enable-key-image-checker", value<bool>()->default_value(false)->implicit_value(true),
-                 "enable key images file checker")
+                 "deprecated compatibility flag, ignored")
                 ("enable-output-key-checker", value<bool>()->default_value(false)->implicit_value(true),
-                 "enable outputs key file checker")
+                 "deprecated compatibility flag, ignored")
                 ("enable-json-api", value<bool>()->default_value(false)->implicit_value(true),
                  "enable JSON REST api")
                 ("enable-as-hex", value<bool>()->default_value(false)->implicit_value(true),
@@ -47,7 +47,7 @@ namespace xmreg
                  "enable MYT total emission monitoring thread")
                 ("port,p", value<string>()->default_value("8081"),
                  "default explorer port")
-                ("bindaddr,x", value<string>()->default_value("0.0.0.0"),
+                ("bindaddr,x", value<string>()->default_value("127.0.0.1"),
                  "default bind address for the explorer")
                 ("testnet-url", value<string>()->default_value(""),
                  "you can specify testnet url, if you run it on mainnet or stagenet. link will show on front page to testnet explorer")
@@ -74,7 +74,7 @@ namespace xmreg
                 ("daemon-url,d", value<string>()->default_value("127.0.0.1:18081"),
                  "MYT daemon url")
                 ("enable-mixin-guess", value<bool>()->default_value(false)->implicit_value(true),
-                 "enable guessing real outputs in key images based on viewkey");
+                 "deprecated compatibility flag, ignored");
 
 
         store(command_line_parser(acc, avv)

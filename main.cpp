@@ -97,14 +97,14 @@ main(int ac, const char* av[])
 
     bool enable_pusher                {*enable_pusher_opt};
     bool enable_randomx               {*enable_randomx_opt};
-    bool enable_key_image_checker     {*enable_key_image_checker_opt};
     bool enable_autorefresh_option    {*enable_autorefresh_option_opt};
-    bool enable_output_key_checker    {*enable_output_key_checker_opt};
     bool enable_mixin_details         {*enable_mixin_details_opt};
-    bool enable_mixin_guess           {*enable_mixin_guess_opt};
     bool enable_json_api              {*enable_json_api_opt};
     bool enable_as_hex                {*enable_as_hex_opt};
     bool enable_emission_monitor      {*enable_emission_monitor_opt};
+
+    if (*enable_key_image_checker_opt || *enable_output_key_checker_opt || *enable_mixin_guess_opt)
+        cerr << "Private wallet inspection has moved to the wallet CLI. Legacy checker flags are ignored." << endl;
 
     //temprorary disable randomx
     if (enable_randomx == true) {
@@ -321,11 +321,8 @@ main(int ac, const char* av[])
                           enable_pusher,
                           enable_randomx,
                           enable_as_hex,
-                          enable_key_image_checker,
-                          enable_output_key_checker,
                           enable_autorefresh_option,
                           enable_mixin_details,
-                          enable_mixin_guess,
                           no_blocks_on_index,
                           mempool_info_timeout,
                           *testnet_url,
@@ -335,12 +332,6 @@ main(int ac, const char* av[])
 
     // crow instance
     crow::SimpleApp app;
-
-    // get domian url based on the request
-    auto get_domain = [&use_ssl](crow::request const& req) {
-        return (use_ssl ? "https://" : "http://")
-               + req.get_header_value("Host");
-    };
 
     CROW_ROUTE(app, "/")
     ([&]() {
@@ -442,101 +433,6 @@ main(int ac, const char* av[])
         });
     }
 
-    CROW_ROUTE(app, "/myoutputs").methods("POST"_method)
-    ([&](const crow::request& req) -> myxmr::htmlresponse
-     {
-
-        map<std::string, std::string> post_body
-                = xmreg::parse_crow_post_data(req.body);
-
-        if (post_body.count("xmr_address") == 0
-            || post_body.count("viewkey") == 0
-            || post_body.count("tx_hash") == 0)
-        {
-            return string("xmr address, viewkey or tx hash not provided");
-        }
-
-        string tx_hash     = remove_bad_chars(post_body["tx_hash"]);
-        string xmr_address = remove_bad_chars(post_body["xmr_address"]);
-        string viewkey     = remove_bad_chars(post_body["viewkey"]);
-
-        // this will be only not empty when checking raw tx data
-        // using tx pusher
-        string raw_tx_data = remove_bad_chars(post_body["raw_tx_data"]);
-
-        string domain      =  get_domain(req);
-
-        string response = xmrblocks.show_my_outputs(
-                                         tx_hash, xmr_address,
-                                         viewkey, raw_tx_data,
-                                         domain);
-
-        return myxmr::htmlresponse(std::move(response));
-    });
-
-    CROW_ROUTE(app, "/myoutputs/<string>/<string>/<string>")
-    ([&](const crow::request& req, string tx_hash,
-        string xmr_address, string viewkey)
-     {
-
-        string domain = get_domain(req);
-
-        return myxmr::htmlresponse(xmrblocks.show_my_outputs(
-                                         remove_bad_chars(tx_hash),
-                                         remove_bad_chars(xmr_address),
-                                         remove_bad_chars(viewkey),
-                                         string {},
-                                         domain));
-    });
-
-    CROW_ROUTE(app, "/prove").methods("POST"_method)
-        ([&](const crow::request& req) -> myxmr::htmlresponse 
-         {
-
-            map<std::string, std::string> post_body
-                    = xmreg::parse_crow_post_data(req.body);
-
-            if (post_body.count("xmraddress") == 0
-                || post_body.count("txprvkey") == 0
-                || post_body.count("txhash") == 0)
-            {
-                return string("xmr address, tx private key or "
-                                      "tx hash not provided");
-            }
-
-            string tx_hash     = remove_bad_chars(post_body["txhash"]);
-            string tx_prv_key  = remove_bad_chars(post_body["txprvkey"]);
-            string xmr_address = remove_bad_chars(post_body["xmraddress"]);
-
-            // this will be only not empty when checking raw tx data
-            // using tx pusher
-            string raw_tx_data = remove_bad_chars(post_body["raw_tx_data"]);
-
-            string domain      = get_domain(req);
-
-            return myxmr::htmlresponse(xmrblocks.show_prove(tx_hash,
-                                        xmr_address,
-                                        tx_prv_key,
-                                        raw_tx_data,
-                                        domain));
-    });
-
-
-    CROW_ROUTE(app, "/prove/<string>/<string>/<string>")
-    ([&](const crow::request& req, string tx_hash,
-         string xmr_address, string tx_prv_key) 
-     {
-
-        string domain = get_domain(req);
-
-        return myxmr::htmlresponse(xmrblocks.show_prove(
-                                    remove_bad_chars(tx_hash),
-                                    remove_bad_chars(xmr_address),
-                                    remove_bad_chars(tx_prv_key),
-                                    string {},
-                                    domain));
-    });
-
     if (enable_pusher)
     {
         CROW_ROUTE(app, "/rawtx")
@@ -571,79 +467,12 @@ main(int ac, const char* av[])
         });
     }
 
-    if (enable_key_image_checker)
-    {
-        CROW_ROUTE(app, "/rawkeyimgs")
-        ([&]() {
-            return myxmr::htmlresponse(xmrblocks.show_rawkeyimgs());
-        });
-
-        CROW_ROUTE(app, "/checkrawkeyimgs").methods("POST"_method)
-        ([&](const crow::request& req) -> myxmr::htmlresponse
-         {
-
-            map<std::string, std::string> post_body
-                    = xmreg::parse_crow_post_data(req.body);
-
-            if (post_body.count("rawkeyimgsdata") == 0)
-            {
-                return string("Raw key images data not given");
-            }
-
-            if (post_body.count("viewkey") == 0)
-            {
-                return string("Viewkey not provided. Cant decrypt key image file without it");
-            }
-
-            string raw_data = remove_bad_chars(post_body["rawkeyimgsdata"]);
-            string viewkey  = remove_bad_chars(post_body["viewkey"]);
-
-            return myxmr::htmlresponse(
-                    xmrblocks.show_checkrawkeyimgs(raw_data, viewkey));
-        });
-    }
-
-
-    if (enable_output_key_checker)
-    {
-        CROW_ROUTE(app, "/rawoutputkeys")
-        ([&]() {
-            return myxmr::htmlresponse(xmrblocks.show_rawoutputkeys());
-        });
-
-        CROW_ROUTE(app, "/checkrawoutputkeys").methods("POST"_method)
-        ([&](const crow::request& req) -> myxmr::htmlresponse
-         {
-
-            map<std::string, std::string> post_body
-                    = xmreg::parse_crow_post_data(req.body);
-
-            if (post_body.count("rawoutputkeysdata") == 0)
-            {
-                return string("Raw output keys data not given");
-            }
-
-            if (post_body.count("viewkey") == 0)
-            {
-                return string("Viewkey not provided. Cant decrypt "
-                                      "key image file without it");
-            }
-
-            string raw_data = remove_bad_chars(post_body["rawoutputkeysdata"]);
-            string viewkey  = remove_bad_chars(post_body["viewkey"]);
-
-            return myxmr::htmlresponse(
-                    xmrblocks.show_checkcheckrawoutput(raw_data, viewkey));
-        });
-    }
-
-
     CROW_ROUTE(app, "/search").methods("GET"_method)
-    ([&](const crow::request& req) {
-        return myxmr::htmlresponse(
-                xmrblocks.search(
-                    remove_bad_chars(
-                        string(req.url_params.get("value")))));
+    ([&](const crow::request& req) -> myxmr::htmlresponse {
+        const auto* value = req.url_params.get("value");
+        if (!value)
+            return string("Search value is required");
+        return xmrblocks.search(remove_bad_chars(string(value)));
     });
 
     CROW_ROUTE(app, "/mempool")
@@ -794,81 +623,6 @@ main(int ac, const char* av[])
         ([&]() {
 
             myxmr::jsonresponse r{xmrblocks.json_emission()};
-
-            return r;
-        });
-
-        CROW_ROUTE(app, "/api/outputs").methods("GET"_method)
-        ([&](const crow::request &req) {
-
-            string tx_hash = regex_search(req.raw_url, regex {"txhash=\\w+"}) ?
-                             req.url_params.get("txhash") : "";
-
-            string address = regex_search(req.raw_url, regex {"address=\\w+"}) ?
-                             req.url_params.get("address") : "";
-
-            string viewkey = regex_search(req.raw_url, regex {"viewkey=\\w+"}) ?
-                             req.url_params.get("viewkey") : "";
-
-            bool tx_prove{false};
-
-            try
-            {
-                tx_prove = regex_search(req.raw_url, regex {"txprove=[01]"}) ?
-                           boost::lexical_cast<bool>(req.url_params.get("txprove")) :
-                           false;
-            }
-            catch (const boost::bad_lexical_cast &e)
-            {
-                cerr << "Cant parse tx_prove as bool. Using default value" << endl;
-            }
-
-            myxmr::jsonresponse r{xmrblocks.json_outputs(
-                    remove_bad_chars(tx_hash),
-                    remove_bad_chars(address),
-                    remove_bad_chars(viewkey),
-                    tx_prove)};
-
-            return r;
-        });
-
-        CROW_ROUTE(app, "/api/outputsblocks").methods("GET"_method)
-        ([&](const crow::request &req) {
-
-            string startblock = regex_search(req.raw_url, regex {"startblock=\\d+"}) ?
-                           req.url_params.get("startblock") : "";
-
-            string endblock = regex_search(req.raw_url, regex {"endblock=\\d+"}) ?
-                           req.url_params.get("endblock") : "";
-
-            string address = regex_search(req.raw_url, regex {"address=\\w+"}) ?
-                             req.url_params.get("address") : "";
-
-            string viewkey = regex_search(req.raw_url, regex {"viewkey=\\w+"}) ?
-                             req.url_params.get("viewkey") : "";
-
-            bool in_mempool_aswell {false};
-
-            try
-            {
-                in_mempool_aswell = regex_search(
-                        req.raw_url, regex {"mempool=[01]"}) ?
-                           boost::lexical_cast<bool>(
-                                   req.url_params.get("mempool")) :
-                           false;
-            }
-            catch (const boost::bad_lexical_cast &e)
-            {
-                cerr << "Cant parse tx_prove as bool. Using default value" 
-                     << endl;
-            }
-
-            myxmr::jsonresponse r{xmrblocks.json_outputsblocks(
-                    remove_bad_chars(startblock),
-                    remove_bad_chars(endblock),
-                    remove_bad_chars(address),
-                    remove_bad_chars(viewkey),
-                    in_mempool_aswell)};
 
             return r;
         });

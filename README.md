@@ -74,16 +74,11 @@ The key features of the Onion Monero Blockchain Explorer are:
  - showing ring signatures,
  - showing transaction extra field,
  - showing public components of Monero addresses,
- - decoding which outputs and mixins belong to the given Monero address and viewkey,
- - can prove that you send Monero to someone,
  - detailed information about ring members, such as their age, timescale, and ring sizes,
  - showing number of amount output indices,
  - support Monero testnet and stagnet networks,
  - tx checker and pusher for online pushing of transactions,
- - estimate possible spendings based on address and viewkey,
  - can provide total amount of all miner fees,
- - decoding encrypted payment id,
- - decoding outputs and proving txs sent to sub-address.
 
 
 ## Development branch
@@ -177,16 +172,16 @@ To run it, mount the monero blockchain onto the container as volume.
 
 ```
 # either run in foreground
-docker run -it -v <path-to-monero-blockckain-on-the-host>:/home/monero/.bitmonero -p 8081:8081  xmrblocks
+docker run -it -v <path-to-monero-blockckain-on-the-host>:/home/monero/.bitmonero -p 127.0.0.1:8081:8081  xmrblocks
 
 # or in background
-docker run -it -d -v <path-to-monero-blockchain-on-the-host>:/home/monero/.bitmonero -p 8081:8081  xmrblocks
+docker run -it -d -v <path-to-monero-blockchain-on-the-host>:/home/monero/.bitmonero -p 127.0.0.1:8081:8081  xmrblocks
 ```
 
 Example output:
 
 ```
-docker run --rm -it -v /mnt/w7/bitmonero:/home/monero/.bitmonero -p 8081:8081 xmrblocks
+docker run --rm -it -v /mnt/w7/bitmonero:/home/monero/.bitmonero -p 127.0.0.1:8081:8081 xmrblocks
 Staring in non-ssl mode
 (2020-04-20 16:20:00) [INFO    ] Crow/0.1 server is running at 0.0.0.0:8081 using 1 threads
 ```
@@ -224,8 +219,8 @@ services:
     volumes:
       - xmrdata:/home/monero/.bitmonero
     ports:
-      - 8081:8081
-    command: ["./xmrblocks --daemon-url=monerod:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"]
+      - "127.0.0.1:8081:8081"
+    command: ["./xmrblocks --bindaddr 0.0.0.0 --daemon-url=monerod:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"]
 
 volumes:
   xmrdata:
@@ -250,6 +245,20 @@ docker-compose up -d
 When running via Docker, please use something like [Traefik](https://doc.traefik.io/traefik/) or [enable SSL](#enable-ssl-https) to secure communications.
 
 
+## Deployment security
+
+The HTTP process binds to loopback by default. Put it behind an HTTPS reverse
+proxy with request timeouts, rate limits and a body limit. The server rejects
+bodies above 4 MiB while reading them. In a container bind to all interfaces
+inside the container and publish the host port on loopback.
+
+Create and verify payment proofs in the local wallet with get_tx_proof and
+check_tx_proof. The explorer accepts public blocks and transactions. Remove the
+legacy wallet-inspection paths from access logs at the proxy, including logs
+for rejected requests. Treat existing logs of those paths as sensitive data.
+The old private-key checker flags are accepted for deployment compatibility
+and produce no routes.
+
 ## The explorer's command line options
 
 ```
@@ -262,10 +271,6 @@ xmrblocks, Onion Monero Blockchain Explorer:
                                         enable mixin details for key images,
                                         e.g., timescale, mixin of mixins, in tx
                                         context
-  --enable-key-image-checker [=arg(=1)] (=0)
-                                        enable key images file checker
-  --enable-output-key-checker [=arg(=1)] (=0)
-                                        enable outputs key file checker
   --enable-json-api [=arg(=1)] (=0)     enable JSON REST api
   --enable-as-hex [=arg(=1)] (=0)       enable links to provide hex
                                         represtations of a tx and a block
@@ -276,7 +281,7 @@ xmrblocks, Onion Monero Blockchain Explorer:
                                         enable Monero total emission monitoring
                                         thread
   -p [ --port ] arg (=8081)             default explorer port
-  -x [ --bindaddr ] arg (=0.0.0.0)      default bind address for the explorer
+  -x [ --bindaddr ] arg (=127.0.0.1)      default bind address for the explorer
   --testnet-url arg                     you can specify testnet url, if you run
                                         it on mainnet or stagenet. link will
                                         show on front page to testnet explorer
@@ -322,10 +327,10 @@ Example usage when running via Docker:
 
 ```bash
 # Run in foreground
-docker run -it -v <path-to-monero-blockckain-on-the-host>:/home/monero/.bitmonero -p 8081:8081  xmrblocks "./xmrblocks --daemon-url=node.sethforprivacy.com:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"
+docker run -it -v <path-to-monero-blockckain-on-the-host>:/home/monero/.bitmonero -p 127.0.0.1:8081:8081  xmrblocks "./xmrblocks --bindaddr 0.0.0.0 --daemon-url=node.sethforprivacy.com:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"
 
 # Run in background
-docker run -it -d -v <path-to-monero-blockchain-on-the-host>:/home/monero/.bitmonero -p 8081:8081  xmrblocks "./xmrblocks --daemon-url=node.sethforprivacy.com:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"
+docker run -it -d -v <path-to-monero-blockchain-on-the-host>:/home/monero/.bitmonero -p 127.0.0.1:8081:8081  xmrblocks "./xmrblocks --bindaddr 0.0.0.0 --daemon-url=node.sethforprivacy.com:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"
 ```
 
 Make sure to always start the portion of command line flags with `./xmrblocks` and set any flags you would like after that, as shown above.
@@ -657,85 +662,6 @@ Partial results shown:
 ```
 
 
-#### api/outputs?txhash=<tx_hash>&address=<address>&viewkey=<viewkey>&txprove=<0|1>
-
-For `txprove=0` we check which outputs belong to given address and corresponding viewkey.
-For `txprove=1` we use to prove to the recipient that we sent them founds.
-For this, we use recipient's address and our tx private key as a viewkey value,
- i.e., `viewkey=<tx_private_key>`
-
-Checking outputs:
-
-```bash
-# we use here official Monero project's donation address as an example
-curl  -w "\n" -X GET "http://127.0.0.1:8081/api/outputs?txhash=17049bc5f2d9fbca1ce8dae443bbbbed2fc02f1ee003ffdd0571996905faa831&address=44AFFq5kSiGBoZ4NMDwYtN18obc8AemS33DBLWs3H7otXft3XjrpDtQGv7SqSsaBYBb98uNbr2VBBEt7f2wfn3RVGQBEP3A&viewkey=f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501&txprove=0"
-```
-
-```json
-{
-  "data": {
-    "address": "42f18fc61586554095b0799b5c4b6f00cdeb26a93b20540d366932c6001617b75db35109fbba7d5f275fef4b9c49e0cc1c84b219ec6ff652fda54f89f7f63c88",
-    "outputs": [
-      {
-        "amount": 34980000000000,
-        "match": true,
-        "output_idx": 0,
-        "output_pubkey": "35d7200229e725c2bce0da3a2f20ef0720d242ecf88bfcb71eff2025c2501fdb"
-      },
-      {
-        "amount": 0,
-        "match": false,
-        "output_idx": 1,
-        "output_pubkey": "44efccab9f9b42e83c12da7988785d6c4eb3ec6e7aa2ae1234e2f0f7cb9ed6dd"
-      }
-    ],
-    "tx_hash": "17049bc5f2d9fbca1ce8dae443bbbbed2fc02f1ee003ffdd0571996905faa831",
-    "tx_prove": false,
-    "viewkey": "f359631075708155cc3d92a32b75a7d02a5dcf27756707b47a2b31b21c389501"
-  },
-  "status": "success"
-}
-```
-
-Proving transfer:
-
-We use recipient's address (i.e. not our address from which we sent xmr to recipient).
-For the viewkey, we use `tx_private_key` (although the GET variable is still called `viewkey`) that we obtained by sending this txs.
-
-```bash
-# this is for testnet transaction
-curl  -w "\n" -X GET "http://127.0.0.1:8082/api/outputs?txhash=94782a8c0aa8d8768afa0c040ef0544b63eb5148ca971a024ac402cad313d3b3&address=9wUf8UcPUtb2huK7RphBw5PFCyKosKxqtGxbcKBDnzTCPrdNfJjLjtuht87zhTgsffCB21qmjxjj18Pw7cBnRctcKHrUB7N&viewkey=e94b5bfc599d2f741d6f07e3ab2a83f915e96fb374dfb2cd3dbe730e34ecb40b&txprove=1"
-```
-
-```json
-{
-  "data": {
-    "address": "71bef5945b70bc0a31dbbe6cd0bd5884fe694bbfd18fff5f68f709438554fb88a51b1291e378e2f46a0155108782c242cc1be78af229242c36d4f4d1c4f72da2",
-    "outputs": [
-      {
-        "amount": 1000000000000,
-        "match": true,
-        "output_idx": 0,
-        "output_pubkey": "c1bf4dd020b5f0ab70bd672d2f9e800ea7b8ab108b080825c1d6cfc0b7f7ee00"
-      },
-      {
-        "amount": 0,
-        "match": false,
-        "output_idx": 1,
-        "output_pubkey": "8c61fae6ada2a103565dfdd307c7145b2479ddb1dab1eaadfa6c34db65d189d5"
-      }
-    ],
-    "tx_hash": "94782a8c0aa8d8768afa0c040ef0544b63eb5148ca971a024ac402cad313d3b3",
-    "tx_prove": true,
-    "viewkey": "e94b5bfc599d2f741d6f07e3ab2a83f915e96fb374dfb2cd3dbe730e34ecb40b"
-  },
-  "status": "success"
-}
-```
-
-
-Result analogical to the one above.
-
 #### api/networkinfo
 
 ```bash
@@ -764,60 +690,6 @@ curl  -w "\n" -X GET "http://127.0.0.1:8081/api/networkinfo"
     "tx_count": 1219048,
     "tx_pool_size": 2,
     "white_peerlist_size": 1000
-  },
-  "status": "success"
-}
-```
-
-#### api/outputsblocks
-
-Search for our outputs in last few blocks (up to 5 blocks), using provided address and viewkey.
-
-
-```bash
-# testnet address
-curl  -w "\n" -X GET http://127.0.0.1:8081/api/outputsblocks?address=9sDyNU82ih1gdhDgrqHbEcfSDFASjFgxL9B9v5f1AytFUrYsVEj7bD9Pyx5Sw2qLk8HgGdFM8qj5DNecqGhm24Ce6QwEGDi&viewkey=807079280293998634d66e745562edaaca45c0a75c8290603578b54e9397e90a&limit=5&mempool=1
-```
-
-Example result:
-
-```json
-{
-  "data": {
-    "address": "0182d5be0f708cecf2b6f9889738bde5c930fad846d5b530e021afd1ae7e24a687ad50af3a5d38896655669079ad0163b4a369f6c852cc816dace5fc7792b72f",
-    "height": 960526,
-    "limit": "5",
-    "mempool": true,
-    "outputs": [
-      {
-        "amount": 33000000000000,
-        "block_no": 0,
-        "in_mempool": true,
-        "output_idx": 1,
-        "output_pubkey": "2417b24fc99b2cbd9459278b532b37f15eab6b09bbfc44f9d17e15cd25d5b44f",
-        "payment_id": "",
-        "tx_hash": "9233708004c51d15f44e86ac1a3b99582ed2bede4aaac6e2dd71424a9147b06f"
-      },
-      {
-        "amount": 2000000000000,
-        "block_no": 960525,
-        "in_mempool": false,
-        "output_idx": 0,
-        "output_pubkey": "9984101f5471dda461f091962f1f970b122d4469077aed6b978a910dc3ed4576",
-        "payment_id": "0000000000000055",
-        "tx_hash": "37825d0feb2e96cd10fa9ec0b990ac2e97d2648c0f23e4f7d68d2298996acefd"
-      },
-      {
-        "amount": 96947454120000,
-        "block_no": 960525,
-        "in_mempool": false,
-        "output_idx": 1,
-        "output_pubkey": "e4bded8e2a9ec4d41682a34d0a37596ec62742b28e74b897fcc00a47fcaa8629",
-        "payment_id": "0000000000000000000000000000000000000000000000000000000000001234",
-        "tx_hash": "4fad5f2bdb6dbd7efc2ce7efa3dd20edbd2a91640ce35e54c6887f0ee5a1a679"
-      }
-    ],
-    "viewkey": "807079280293998634d66e745562edaaca45c0a75c8290603578b54e9397e90a"
   },
   "status": "success"
 }
@@ -900,3 +772,25 @@ finished and may not work as intended.
 ## How can you help?
 
 Constructive criticism, code and website edits are always good. They can be made through github.
+
+### Legacy wallet-route denylist at the reverse proxy
+
+Before switching the binary and templates together, add this block to each
+existing Nginx explorer server (Mainnet and Testnet), before any general
+regex proxy locations:
+
+    location ~ ^/(?:myoutputs|prove|rawkeyimgs|checkrawkeyimgs|rawoutputkeys|checkrawoutputkeys|api/outputs|api/outputsblocks)(?:/|$) {
+        access_log off;
+        return 404;
+    }
+
+Check that no competing exact or ^~ location takes precedence. Keep the
+explorer bound to 127.0.0.1; publish container ports on loopback as above.
+Run nginx -t before an authorized reload. Test each exact path and a child
+path with GET and POST; all must return 404 without an access-log entry.
+Do not use real keys in these requests. Review any additional load-balancer
+or CDN logging separately; an Nginx rule cannot suppress their logs.
+
+This is a deployment procedure, not a request to expose or migrate production
+services automatically. Existing logs of legacy wallet routes are sensitive
+and must not be attached to bug reports or pull requests.
